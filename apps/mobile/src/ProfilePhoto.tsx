@@ -1,3 +1,4 @@
+import {nativeInteraction} from './nativeInteraction';
 import React,{useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,View} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,9 +20,9 @@ export function ProfilePhoto({kind,target,editable=false,writable=false,compact=
  }catch(e){if(live.current&&ticket===generation.current)setError(errorText(e));}finally{if(live.current&&ticket===generation.current)setLoading(false);}}
  useEffect(()=>{live.current=true;void load();return()=>{live.current=false;generation.current++;files.current.forEach(deletePhoto);};},[kind,target]);
  async function pick(camera:boolean){if(busy||!writable)return;setBusy(true);setError('');try{
-  if(camera&&Platform.OS!=='web'){const permission=await ImagePicker.requestCameraPermissionsAsync();if(!permission.granted)throw Error('Allow camera access in your phone settings, or choose a photo.');}
+  if(camera&&Platform.OS!=='web'){const permission=await nativeInteraction(()=>ImagePicker.requestCameraPermissionsAsync());if(!permission.granted)throw Error('Allow camera access in your phone settings, or choose a photo.');}
   const options:ImagePicker.ImagePickerOptions={mediaTypes:['images'],quality:.85,allowsMultipleSelection:false};
-  const result=camera?await ImagePicker.launchCameraAsync(options):await ImagePicker.launchImageLibraryAsync(options);
+  const result=await nativeInteraction(()=>camera?ImagePicker.launchCameraAsync(options):ImagePicker.launchImageLibraryAsync(options));
   if(!result.canceled){const photo=result.assets[0];if(!live.current){deletePhoto(photo.uri);return;}files.current.push(photo.uri);setReady(false);setDraft(photo);pending.current=null;}
  }catch(e){if(live.current)setError(errorText(e));}finally{if(live.current)setBusy(false);}}
  async function save(clear=false){if(busy||!writable||(!clear&&(!draft||!ready)))return;setBusy(true);setError('');try{

@@ -1,3 +1,5 @@
+import {SelectField} from './SelectField';
+import {FormScroll} from './FormScroll';
 import React,{useState} from 'react';
 import {Modal,Pressable,ScrollView,Text,TextInput,View} from 'react-native';
 import {rpc} from './client';
@@ -15,7 +17,7 @@ export function NotificationSettings({writable}:{writable:boolean}){
   if(result.status!=='accepted')throw Error('These settings changed elsewhere. Close and reopen to load the latest settings.');setRules(previous=>previous.map(r=>r.kind===rule.kind?{...r,revision:r.revision+1}:r));setMessage('Reminder settings saved.');
  }
  return <><Choice label="Reminder settings" onPress={()=>{setOpen(true);void run(load);}}/>
- <Modal visible={open} animationType="slide" onRequestClose={()=>setOpen(false)}><ScrollView contentContainerStyle={{padding:24,paddingTop:50,gap:16,backgroundColor:'#F5F6F0'}}>
+ <Modal visible={open} animationType="slide" onRequestClose={()=>setOpen(false)}><FormScroll contentContainerStyle={{padding:24,paddingTop:50,gap:16,backgroundColor:'#F5F6F0'}}>
  <Choice label="Close" onPress={()=>setOpen(false)}/><Text style={{fontSize:26,fontWeight:'700',color:'#153C32'}}>Reminder settings</Text>
  <Text>Urgent issues always alert all admins by push and email. Overdue tasks are reminded daily, with admins included after seven days.</Text>
  <Text>Delivery is awaiting business setup. These preferences will apply when alerts are activated.</Text>
@@ -24,10 +26,10 @@ export function NotificationSettings({writable}:{writable:boolean}){
  <Choice label="Save timezone" disabled={!writable||busy} onPress={()=>void run(async()=>{if(!await rpc('save_business_timezone',{p_timezone:zone.trim(),p_previous:savedZone}))throw Error('Timezone changed elsewhere. Close and reopen these settings.');setSavedZone(zone.trim());setMessage('Timezone saved.');})}/></View>
  {rules.map(rule=><View key={rule.kind} style={box}><Text style={{fontWeight:'700',fontSize:18}}>{labels[rule.kind]}</Text>
  <Choice label={rule.enabled?'Enabled':'Disabled'} selected={rule.enabled} disabled={!writable||busy} onPress={()=>change(rule.kind,{enabled:!rule.enabled})}/>
- <Text>Who receives it</Text><View style={{flexDirection:'row',gap:8,flexWrap:'wrap'}}>{[['admin','Admins'],['assigned','Assigned technicians'],['both','Both']].map(([value,label])=><Choice key={value} label={label} selected={rule.recipients===value} disabled={!writable||busy} onPress={()=>change(rule.kind,{recipients:value})}/>)}</View>
- <Text>Delivery</Text><View style={{flexDirection:'row',gap:8}}>{[['push','Phone alert'],['email','Email'],['both','Both']].map(([value,label])=><Choice key={value} label={label} selected={rule.channel===value} disabled={!writable||busy} onPress={()=>change(rule.kind,{channel:value})}/>)}</View>
+ <SelectField label="Who receives it" value={rule.recipients} options={[{value:'admin',label:'Admins'},{value:'assigned',label:'Assigned technicians'},{value:'both',label:'Both'}]} disabled={!writable||busy} onChange={recipients=>change(rule.kind,{recipients})}/>
+ <SelectField label="Delivery" value={rule.channel} options={[{value:'push',label:'Phone alert'},{value:'email',label:'Email'},{value:'both',label:'Both'}]} disabled={!writable||busy} onChange={channel=>change(rule.kind,{channel})}/>
  {['issue_reported','reassignment'].includes(rule.kind)?<Text>Sent when the change happens.</Text>:<><Text>Local time (24-hour format)</Text><TextInput accessibilityLabel={`${labels[rule.kind]} time`} value={rule.local_time.slice(0,5)} onChangeText={local_time=>change(rule.kind,{local_time})} editable={writable&&!busy} style={{padding:12,backgroundColor:'white'}}/>
  <View style={{flexDirection:'row',gap:6,flexWrap:'wrap'}}>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day,index)=><Choice key={day} label={day} selected={rule.weekdays.includes(index+1)} disabled={!writable||busy} onPress={()=>change(rule.kind,{weekdays:rule.weekdays.includes(index+1)?rule.weekdays.filter(d=>d!==index+1):[...rule.weekdays,index+1]})}/>)}</View>{rule.kind==='service_due'?<Text>A new due service also triggers an alert before its next scheduled reminder.</Text>:null}</>}
  <Choice label="Save reminder" disabled={!writable||busy} onPress={()=>void run(()=>save(rule))}/></View>)}
- </ScrollView></Modal></>;
+ </FormScroll></Modal></>;
 }

@@ -1,3 +1,4 @@
+import {nativeInteraction} from './nativeInteraction';
 import {currentOffline} from './offlineStore';
 import {queueEntry,flushQueue} from './offlineSync';
 import React,{useEffect,useRef,useState} from 'react';
@@ -45,7 +46,7 @@ export function ServiceCompletion({asset,service,admin,writable,onSaved,onCancel
     <Text style={s.label}>Service reading ({asset.meter_unit})</Text><TextInput accessibilityLabel="Service reading" value={reading} onChangeText={setReading} editable={!submission.current&&!busy} keyboardType="decimal-pad" style={s.input}/>
     <Text style={s.small}>Current asset reading: {asset.current_hours} {asset.meter_unit}</Text>
     {cameraOpen?<>
-      {permission?.granted?<CameraView ref={camera} facing="back" mode="picture" onCameraReady={()=>setReady(true)} onMountError={()=>{setError('Camera unavailable. Use a phone with a working camera to record this service.');setCameraOpen(false);}} style={s.camera}/>:<><Text style={s.text}>Camera access is required for a service photo.</Text><Button label="Allow camera" onPress={()=>void requestPermission()}/></>}
+      {permission?.granted?<CameraView ref={camera} facing="back" mode="picture" onCameraReady={()=>setReady(true)} onMountError={()=>{setError('Camera unavailable. Use a phone with a working camera to record this service.');setCameraOpen(false);}} style={s.camera}/>:<><Text style={s.text}>Camera access is required for a service photo.</Text><Button label="Allow camera" onPress={()=>void nativeInteraction(()=>requestPermission())}/></>}
       <Button label="Take service photo" onPress={()=>void capture()} disabled={busy||!ready||!permission?.granted}/>
     </>:photo?<>
       <View ref={frame} collapsable={false} style={{width:'100%',backgroundColor:'#153C32'}}><Image source={{uri:photo.uri}} style={{width:'100%',aspectRatio:photo.width/photo.height}} onLoad={()=>setImageReady(true)} onError={()=>setError('The captured photo could not be loaded. Retake it.')}/><Text style={s.stamp}>Captured {photo.capture}</Text></View>

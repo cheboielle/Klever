@@ -14,7 +14,8 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://blzubtujrxpcnfphcrny.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_Qle-_aWJIlj9frFpOBHkcg_KhiD39nZ"
-      }
+      },
+      "autoIncrement": true
     },
     "production": {
       "autoIncrement": true

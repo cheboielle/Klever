@@ -3,7 +3,7 @@ import {AppState,Pressable,Text,View} from 'react-native';
 import * as Notifications from 'expo-notifications';
 import {registerPhoneAlerts} from './pushRegistration.native';
 Notifications.setNotificationHandler({handleNotification:async()=>({shouldShowBanner:true,shouldShowList:true,shouldPlaySound:true,shouldSetBadge:false})});
-export function NotificationSetup({onOpenAlert}:{onOpenAlert:(data:unknown)=>Promise<boolean>}){
+export function NotificationSetup({onOpenAlert,showControls=true}:{showControls?:boolean;onOpenAlert:(data:unknown)=>Promise<boolean>}){
  const response=Notifications.useLastNotificationResponse(),openAlert=useRef(onOpenAlert),handled=useRef<string|null>(null);
  openAlert.current=onOpenAlert;
  const [retry,setRetry]=useState<Notifications.NotificationResponse|null>(null);
@@ -24,5 +24,5 @@ export function NotificationSetup({onOpenAlert}:{onOpenAlert:(data:unknown)=>Pro
  async function enable(){if(busy)return;setBusy(true);setMessage('');try{
   if(!await registerPhoneAlerts(true))throw Error('Sign in and reconnect before enabling phone alerts.');setMessage('This phone is registered for alerts. Delivery becomes available when your business notification service is activated.');
  }catch(e){setMessage(e instanceof Error?e.message:'Unable to enable alerts. Check your connection and retry.');}finally{setBusy(false);}}
- return <View style={{gap:8}}><Pressable accessibilityRole="button" disabled={busy} onPress={()=>void enable()} style={{padding:12,borderRadius:10,backgroundColor:'#EAF0E7'}}><Text style={{fontWeight:'600',color:'#153C32'}}>{busy?'Registering phone…':'Enable phone alerts'}</Text></Pressable>{retry?<Pressable accessibilityRole="button" onPress={()=>void openResponse(retry)} style={{padding:12,backgroundColor:'#EAF0E7'}}><Text>Open alert again</Text></Pressable>:null}{message?<Text style={{fontSize:13,color:'#53665B'}}>{message}</Text>:null}</View>;
+ return <View style={{gap:8,display:showControls?'flex':'none'}}><Pressable accessibilityRole="button" disabled={busy} onPress={()=>void enable()} style={{padding:12,borderRadius:10,backgroundColor:'#EAF0E7'}}><Text style={{fontWeight:'600',color:'#153C32'}}>{busy?'Registering phone…':'Enable phone alerts'}</Text></Pressable>{retry?<Pressable accessibilityRole="button" onPress={()=>void openResponse(retry)} style={{padding:12,backgroundColor:'#EAF0E7'}}><Text>Open alert again</Text></Pressable>:null}{message?<Text style={{fontSize:13,color:'#53665B'}}>{message}</Text>:null}</View>;
 }

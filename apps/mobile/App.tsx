@@ -1,3 +1,9 @@
+import {nativeInteraction,nativeInteractionActive,ForegroundGate} from './src/nativeInteraction';
+import {FormScroll} from './src/FormScroll';
+import {SelectField} from './src/SelectField';
+import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
+import {KeyboardProvider} from 'react-native-keyboard-controller';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,AppState,KeyboardAvoidingView,Modal,Platform,Pressable,RefreshControl,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {StatusBar} from 'expo-status-bar';
@@ -44,13 +50,18 @@ function Field({label,value,onChangeText,secure=false,numeric=false}:{label:stri
 }
 function Notice({text}:{text:string}){return <View accessibilityLiveRegion="polite" style={s.notice}><Text style={s.noticeText}>{text}</Text></View>;}
 
-export default function App(){
+export default function App(){return <SafeAreaProvider><KeyboardProvider><Workspace/></KeyboardProvider></SafeAreaProvider>;}
+function Workspace(){
   const [session,setSession]=useState<Session|null>(null),[access,setAccess]=useState<Access|null>(null),[ownerId,setOwnerId]=useState<string|null>(null);
   const [boot,setBoot]=useState(true),[loading,setLoading]=useState(false),[error,setError]=useState('');
   const [assets,setAssets]=useState<Asset[]>([]),[members,setMembers]=useState<Member[]>([]),[types,setTypes]=useState<AssetType[]>([]);
-  const [page,setPage]=useState<'assets'|'team'|'tasks'>('assets'),[selected,setSelected]=useState<Asset|null>(null),[showArchived,setShowArchived]=useState(false);
+  const [page,setPage]=useState<'assets'|'team'|'tasks'|'settings'>('assets'),[selected,setSelected]=useState<Asset|null>(null),[showArchived,setShowArchived]=useState(false);
   const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
   const [photoVersion,setPhotoVersion]=useState(0),[scheduleVersion,setScheduleVersion]=useState(0);
+  const [statusFilter,setStatusFilter]=useState<AssetStatus|'all'>('all');
+  const authentication=useRef<Promise<boolean>|null>(null);
+  const foregroundGate=useRef(new ForegroundGate());
+  const [unlocking,setUnlocking]=useState(false);
   const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newName,setNewName]=useState(''),[serial,setSerial]=useState(''),[initialHours,setInitialHours]=useState('0'),[typeId,setTypeId]=useState(''),[newType,setNewType]=useState('');
   const [editingAsset,setEditingAsset]=useState<Asset|null>(null),[editingMember,setEditingMember]=useState<Member|null>(null);
   const [memberName,setMemberName]=useState(''),[memberPhone,setMemberPhone]=useState(''),[meterReason,setMeterReason]=useState(''),[meterConfirmed,setMeterConfirmed]=useState(false);
@@ -75,7 +86,19 @@ export default function App(){
     try{await clearOffline();}finally{clearData();setSession(null);setPassword('');await supabase?.auth.signOut({scope:'local'});}
   },[clearData]);
 
-  const refresh=useCallback(async(unlock=true)=>{
+  async function unlockWorkspace(){
+    if(authentication.current)return authentication.current;
+    const user=session?.user.id;
+    setUnlocking(true);
+    authentication.current=nativeInteraction(async()=>{
+      const result=await LocalAuthentication.authenticateAsync({promptMessage:'Unlock Klever Assets',disableDeviceFallback:false});
+      return result.success;
+    });
+    try{const success=await authentication.current;if(currentOffline()?.snapshot().userId===user)setLocked(!success);return success;}
+    catch{setError('Phone unlock did not finish. Try Unlock again.');return false;}
+    finally{authentication.current=null;setUnlocking(false);}
+  }
+  const refresh=useCallback(async(unlock=false)=>{
     if(!supabase||!session)return;
     try{await activateOffline(session.user.id);}catch(e){setError(errText(e));return;}
     const ticket=++generation.current;setLoading(true);setOnline(false);
@@ -87,6 +110,7 @@ export default function App(){
         setError(a.reason==='not_provisioned'?'Your login is ready, but your business access has not been set up yet.':'Your access has changed. Please sign in again or contact your administrator.');
         return;
       }
+      unlock=unlock||Boolean(a.app_lock&&!currentOffline()?.snapshot().access?.app_lock);
       await currentOffline()?.validated(a);if(unlock&&a.app_lock&&Platform.OS!=='web')setLocked(true);setAccess(a);
       const canAdmin=a.role!=='technician';
       const results=await Promise.all([
@@ -105,13 +129,12 @@ export default function App(){
       void Promise.allSettled([rpc('list_tasks',{p_asset:null,p_archived:false}),...(results[0].data??[]).filter(asset=>!asset.archived).flatMap(asset=>[rpc('list_asset_services',{p_asset:asset.id}),rpc('list_tasks',{p_asset:asset.id,p_archived:false}),rpc('list_asset_issues',{p_asset:asset.id}),rpc('list_compliance',{p_asset:asset.id})])]);
       if(unlock&&a.app_lock&&Platform.OS!=='web'){
         setLocked(true);
-        const result=await LocalAuthentication.authenticateAsync({promptMessage:'Unlock Klever Assets',disableDeviceFallback:false});
-        if(ticket===generation.current)setLocked(!result.success);
+        // The visible Unlock button starts authentication after the lock screen mounts.
       }else if(!a.app_lock||Platform.OS==='web')setLocked(false);
     }catch(e){if(ticket===generation.current){
       const cached=networkFailure(e)?readCache<{access:Access;assets:Asset[];members:Member[];types:AssetType[];ownerId?:string|null}>('workspace'):undefined;
       if(cached){setAccess(currentOffline()?.snapshot().access??cached.access);setAssets(cached.assets);setMembers(cached.members);setTypes(cached.types);setOwnerId(cached.ownerId??null);setError('Offline — showing saved data. New entries stay on this device until they sync.');
-       if(unlock&&cached.access.app_lock&&Platform.OS!=='web'){setLocked(true);const result=await LocalAuthentication.authenticateAsync({promptMessage:'Unlock Klever Assets',disableDeviceFallback:false});if(ticket===generation.current)setLocked(!result.success);}
+       if(unlock&&cached.access.app_lock&&Platform.OS!=='web'){setLocked(true);}
       }else setError('Unable to refresh your workspace. Check your connection and retry.');
     }}
     finally{if(ticket===generation.current)setLoading(false);}
@@ -127,13 +150,14 @@ export default function App(){
     });
     return()=>{alive=false;subscription.unsubscribe();};
   },[clearData]);
-  useEffect(()=>{if(session)void refresh();},[session?.user.id,refresh]);
+  useEffect(()=>{if(session)void refresh(true);},[session?.user.id,refresh]);
   useEffect(()=>{void configureBackgroundSync(Boolean(session)).catch(()=>{});},[session?.user.id]);
   useEffect(()=>{
     if(AppState.currentState==='active')supabase?.auth.startAutoRefresh();
     const sub=AppState.addEventListener('change',state=>{
-      if(state==='active'){supabase?.auth.startAutoRefresh();if(session)void refresh();}
-      else {supabase?.auth.stopAutoRefresh();if(access?.app_lock)setLocked(true);}
+      const transition=foregroundGate.current.change(state,nativeInteractionActive(state==='active'));
+      if(state==='active'){supabase?.auth.startAutoRefresh();if(session&&transition.refresh)void refresh(transition.unlock);}
+      else {supabase?.auth.stopAutoRefresh();if(access?.app_lock&&transition.lock)setLocked(true);}
     });
     return()=>sub.remove();
   },[session?.user.id,access?.app_lock,refresh]);
@@ -161,7 +185,7 @@ export default function App(){
     });
     if(ticket!==generation.current)return false;
     if(target.kind==='denied'){await signOut();return true;}
-    if(target.kind==='unlock'){await refresh();return false;}
+    if(target.kind==='unlock'){await refresh(true);return false;}
     if(target.kind==='asset'){setPage('assets');await openAsset(target.asset);}
     else if(target.kind==='tasks'||target.kind==='assets'){setSelected(null);setPage(target.kind);}
     else if(target.kind==='unavailable'){setSelected(null);setPage('assets');setError('This alert’s asset is no longer available to you.');}
@@ -212,74 +236,75 @@ export default function App(){
   if(boot)return <View style={s.center}><ActivityIndicator color={colors.green}/><Text style={s.muted}>Opening your workspace…</Text></View>;
   if(!configured)return <View style={s.center}><Text style={s.title}>Connection needed</Text><Text style={s.muted}>The app’s Supabase connection must be configured before signing in.</Text></View>;
   if(!session)return <KeyboardAvoidingView style={s.root} behavior={Platform.OS==='ios'?'padding':undefined}><StatusBar style="dark"/>
-    <ScrollView contentContainerStyle={s.login} keyboardShouldPersistTaps="handled">
+    <FormScroll contentContainerStyle={s.login} keyboardShouldPersistTaps="handled">
       <View style={s.brand}><Text style={s.mark}>k</Text><Text style={s.brandText}>KLEVER ASSETS</Text></View>
       <View style={{gap:16,marginTop:54,marginBottom:28}}><Text style={s.eyebrow}>READY FOR THE DAY</Text><Text style={s.hero}>Keep your{ '\n'}equipment moving.</Text><Text style={s.subtitle}>Your machines, maintenance and team.{ '\n'}One place to stay on top of it.</Text></View>
       <View style={s.card}><Text style={s.heading}>Welcome back</Text><Text style={s.muted}>Sign in to your business workspace.</Text>
         <Field label="Email" value={email} onChangeText={setEmail}/><Field label="Password" value={password} onChangeText={setPassword} secure/>
         {error?<Notice text={error}/>:null}<Button title={busy?'Signing in…':'Sign in'} onPress={()=>void login()} disabled={busy||!email.trim()||!password}/>
       </View><Text style={[s.muted,{marginTop:28,textAlign:'center'}]}>Simple maintenance. A better working day.</Text>
-    </ScrollView></KeyboardAvoidingView>;
+    </FormScroll></KeyboardAvoidingView>;
 
-  if(locked)return <View style={s.center}><Text style={s.title}>Workspace locked</Text><Text style={s.muted}>Use your device credentials to continue.</Text><Button title="Unlock" onPress={()=>void refresh()}/><Button title="Sign out" onPress={()=>void signOut()} secondary/></View>;
   if(!access)return <View style={s.center}>{loading?<ActivityIndicator color={colors.green}/>:null}<Text style={s.title}>Opening your business</Text>{error?<Notice text={error}/>:null}<Button title="Retry" onPress={()=>void refresh()}/><Button title="Sign out" onPress={()=>void signOut()} secondary/></View>;
 
-  const filtered=pendingAssets.filter(a=>a.archived===Boolean(admin&&showArchived)).filter(a=>`${a.name} ${a.serial}`.toLowerCase().includes(search.toLowerCase()));
-  return <View style={s.root}><StatusBar style="dark"/>
+  const filtered=pendingAssets.filter(a=>a.archived===Boolean(admin&&showArchived)).filter(a=>statusFilter==='all'||a.status===statusFilter).filter(a=>`${a.name} ${a.serial}`.toLowerCase().includes(search.toLowerCase()));
+  return <SafeAreaView style={s.root}><StatusBar style="dark"/>
     <View style={s.top}><View style={s.brand}><Text style={s.mark}>k</Text><View><Text style={s.brandText}>KLEVER ASSETS</Text><Text style={s.small}>{access.tenant_name}</Text></View></View><Pressable accessibilityRole="button" onPress={()=>void signOut()}><Text style={s.link}>Sign out</Text></Pressable></View>
-    <ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={loading} onRefresh={()=>void refresh()} tintColor={colors.green}/> }>
-      <Text style={s.eyebrow}>{admin?'YOUR WORKSPACE':'YOUR ASSIGNED EQUIPMENT'}</Text><Text style={s.hero}>{page==='assets'?'A clear view of\nyour equipment.':page==='tasks'?'Your shared jobs.':'Your people.'}</Text>
-      <Text style={s.subtitle}>Good to see you, {access.name?.split(' ')[0]}.</Text><NotificationSetup onOpenAlert={openAlert}/>{admin?<><BusinessSettings writable={writable} onSaved={()=>refresh()}/><AssetTypeSettings types={types} writable={writable} onSaved={()=>refresh(false)}/><NotificationSettings writable={writable}/><ExportPanel/></>:null}
+    <FormScroll contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={loading} onRefresh={()=>void refresh()} tintColor={colors.green}/> }>
+      <Text style={s.eyebrow}>{admin?'YOUR WORKSPACE':'YOUR ASSIGNED EQUIPMENT'}</Text><Text style={s.title}>{page==='assets'?'Assets':page==='tasks'?'Tasks':page==='team'?'Team':'Settings'}</Text>
+      <Text style={s.subtitle}>{page==='settings'?'Manage your business, alerts and preferences.':`Good to see you, ${access.name?.split(' ')[0]}.`}</Text><NotificationSetup onOpenAlert={openAlert} showControls={page==='settings'}/>{page==='settings'&&admin?<><View style={s.card}><Ionicons name="business-outline" size={24} color={colors.green}/><Text style={s.muted}>Business name, phone lock and service-cost currency.</Text><BusinessSettings writable={writable} onSaved={()=>refresh()}/></View><View style={s.card}><Ionicons name="pricetags-outline" size={24} color={colors.green}/><Text style={s.muted}>Name the types used to group your equipment.</Text><AssetTypeSettings types={types} writable={writable} onSaved={()=>refresh(false)}/></View><View style={s.card}><Ionicons name="notifications-outline" size={24} color={colors.green}/><Text style={s.muted}>Choose who receives reminders and when.</Text><NotificationSettings writable={writable}/></View><ExportPanel/></>:null}
       <PendingSync/>{!online&&offlineState&&!offlineEntryAllowed(offlineState)?<Notice text="Reconnect to confirm access before adding new entries. Existing pending entries are kept."/>:null}{error?<Notice text={error}/>:null}{!access.can_write?<Notice text="This workspace is read-only. Your records remain available."/>:null}
       {page==='assets'?<>
-        <View style={s.stats}><View style={s.stat}><Text style={s.statNumber}>{activeAssets.length}</Text><Text style={s.small}>Assets</Text></View><View style={s.stat}><Text style={s.statNumber}>{activeAssets.filter(a=>a.status==='Active').length}</Text><Text style={s.small}>Active</Text></View><View style={s.stat}><Text style={s.statNumber}>{activeAssets.filter(a=>a.status==='Workshop').length}</Text><Text style={s.small}>In workshop</Text></View></View>
+        <View style={s.stats}>{([{value:'all',label:'Assets',icon:'cube-outline',count:activeAssets.length},{value:'Active',label:'Active',icon:'checkmark-circle-outline',count:activeAssets.filter(a=>a.status==='Active').length},{value:'Workshop',label:'In workshop',icon:'build-outline',count:activeAssets.filter(a=>a.status==='Workshop').length}] as const).map(tile=><Pressable key={tile.value} accessibilityRole="button" accessibilityState={{selected:statusFilter===tile.value&&!showArchived}} style={[s.stat,statusFilter===tile.value&&!showArchived&&{borderWidth:1,borderColor:colors.green}]} onPress={()=>{setShowArchived(false);setStatusFilter(tile.value);setSearch('');}}><Ionicons name={tile.icon} size={22} color={colors.green}/><Text style={s.statNumber}>{tile.count}</Text><Text style={s.small}>{tile.label}</Text></Pressable>)}</View>
+        {statusFilter!=='all'?<Button title="Show all assets" secondary onPress={()=>setStatusFilter('all')}/>:null}
         <View style={s.sectionRow}><Text style={s.heading}>Asset register</Text>{admin?<Pressable disabled={!writable} onPress={()=>{setError('');setEditingAsset(null);setNewName('');setSerial('');setInitialHours('0');setMeterUnit('hours');setMeterReason('');setMeterConfirmed(false);setTypeId(types[0]?.id??'');setShowAdd(true);}}><Text style={[s.link,!writable&&{opacity:.4}]}>+ Add asset</Text></Pressable>:null}</View>
-        {admin?<Button title={showArchived?'Show current assets':'Show archived assets'} secondary onPress={()=>setShowArchived(!showArchived)}/>:null}<TextInput accessibilityLabel="Search assets" value={search} onChangeText={setSearch} style={s.input} placeholder="Search by name or serial…" placeholderTextColor={colors.muted}/>
+        {admin?<Button title={showArchived?'Show current assets':'Show archived assets'} secondary onPress={()=>{setShowArchived(!showArchived);setStatusFilter('all');}}/>:null}<TextInput accessibilityLabel="Search assets" value={search} onChangeText={setSearch} style={s.input} placeholder="Search by name or serial…" placeholderTextColor={colors.muted}/>
         {filtered.length?filtered.map(a=><Pressable key={a.id} accessibilityRole="button" onPress={()=>void openAsset(a)} style={s.assetCard}>
           <ProfilePhoto key={a.id+':'+photoVersion} kind="asset" target={a.id} compact/><View style={{flex:1,gap:5}}><Text style={s.assetName}>{a.name}</Text><Text style={s.small}>{a.serial||'No serial recorded'}</Text><Text style={[s.badge,{color:a.status==='Active'?colors.green:colors.amber}]}>{a.archived?'Archived':a.status}</Text></View><View style={{alignItems:'flex-end',gap:5}}><Text style={s.hours}>{Number(a.current_hours).toLocaleString()}</Text><Text style={s.small}>{a.meter_unit}</Text><Text style={s.link}>View →</Text></View>
-        </Pressable>):<View style={s.card}><Text style={s.heading}>{search?'No matching assets':showArchived?'No archived assets':'A fresh start'}</Text><Text style={s.muted}>{showArchived?'Archived equipment and its history will appear here.':admin?'Add your first machine or vehicle to get started.':'Your administrator will assign your equipment here.'}</Text></View>}
-      </>:page==='tasks'?<TaskPanel assets={activeAssets} admin={Boolean(admin)} writable={writable} captureWritable={captureWritable}/>:<>
+        </Pressable>):<View style={s.card}><Text style={s.heading}>{search||statusFilter!=='all'?'No matching assets':showArchived?'No archived assets':'A fresh start'}</Text><Text style={s.muted}>{statusFilter!=='all'?'No assets have this status. Choose Show all assets to return.':showArchived?'Archived equipment and its history will appear here.':admin?'Add your first machine or vehicle to get started.':'Your administrator will assign your equipment here.'}</Text></View>}
+      </>:page==='tasks'?<TaskPanel assets={activeAssets} admin={Boolean(admin)} writable={writable} captureWritable={captureWritable}/>:page==='team'?<>
         <View style={s.sectionRow}><Text style={s.heading}>Staff</Text><Text style={s.small}>{members.filter(m=>m.is_active).length} active</Text></View>
         {members.map(m=><View key={m.user_id} style={s.card}><View style={s.sectionRow}><Text style={s.assetName}>{m.name}</Text><Text style={s.badge}>{m.is_active?'Active':'Inactive'}</Text></View><Text style={s.small}>{m.user_id===ownerId?'owner':m.user_id===access.user_id?access.role:m.role}</Text><Text style={s.muted}>{m.phone||'No phone number recorded'}</Text><ProfilePhoto kind="member" target={m.user_id} editable writable={writable}/><Button title="Edit details" secondary disabled={!writable||busy} onPress={()=>{setEditingMember(m);setMemberName(m.name);setMemberPhone(m.phone);setError('');}}/>
           <TeamAccessControls member={m} ownerId={ownerId} viewerId={session.user.id} viewerIsOwner={access.role==='owner'} writable={writable} online={online} assets={activeAssets} onSaved={()=>refresh(false)} onOpenAsset={openAsset}/>
         </View>)}
-      </>}
-    </ScrollView>
-    {<View style={s.tabs}>{(admin?['assets','tasks','team'] as const:['assets','tasks'] as const).map(p=><Pressable key={p} style={[s.tab,page===p&&s.tabSelected]} onPress={()=>setPage(p)}><Text style={[s.tabText,page===p&&{color:colors.green}]}>{p==='assets'?'Assets':p==='tasks'?'Tasks':'Team'}</Text></Pressable>)}</View>}
+      </>:null}
+    </FormScroll>
+    <View style={s.tabs}>{(admin?['assets','tasks','team','settings'] as const:['assets','tasks','settings'] as const).map(p=><Pressable key={p} accessibilityRole="tab" accessibilityState={{selected:page===p}} style={[s.tab,page===p&&s.tabSelected]} onPress={()=>setPage(p)}><Ionicons name={p==='assets'?'cube-outline':p==='tasks'?'checkbox-outline':p==='team'?'people-outline':'settings-outline'} size={23} color={page===p?colors.green:colors.muted}/><Text style={[s.tabText,page===p&&{color:colors.green}]}>{p==='assets'?'Assets':p==='tasks'?'Tasks':p==='team'?'Team':'Settings'}</Text></Pressable>)}</View>
 
-    <Modal visible={showAdd} animationType="slide" onRequestClose={()=>setShowAdd(false)}><View style={s.root}><ScrollView contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.title}>{editingAsset?'Edit asset':'Add an asset'}</Text><Pressable onPress={()=>setShowAdd(false)}><Text style={s.link}>Close</Text></Pressable></View>
+    <Modal visible={showAdd} animationType="slide" onRequestClose={()=>setShowAdd(false)}><View style={s.root}><FormScroll contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.title}>{editingAsset?'Edit asset':'Add an asset'}</Text><Pressable onPress={()=>setShowAdd(false)}><Text style={s.link}>Close</Text></Pressable></View>
       <Field label="Asset name" value={newName} onChangeText={setNewName}/><Field label="Serial number" value={serial} onChangeText={setSerial}/><Text style={s.label}>Track this asset in</Text><View style={s.row}>{(['hours','km'] as const).map(unit=><Pressable key={unit} accessibilityRole="radio" accessibilityState={{checked:meterUnit===unit}} onPress={()=>{setMeterUnit(unit);setMeterConfirmed(false);}} style={[s.chip,meterUnit===unit&&s.selectedChip]}><Text style={s.label}>{unit==='hours'?'Hours':'Kilometres (km)'}</Text></Pressable>)}</View>{!editingAsset||meterUnit!==editingAsset.meter_unit?<Field label={meterUnit==='km'?'Current kilometres (km)':'Current hours'} value={initialHours} onChangeText={v=>{setInitialHours(v);setMeterConfirmed(false);}} numeric/>:null}
       {editingAsset&&meterUnit!==editingAsset.meter_unit?<><Notice text="Enter the correct current reading in the new unit. Earlier readings keep their original units."/><Field label="Reason for unit correction" value={meterReason} onChangeText={setMeterReason}/><Pressable accessibilityRole="checkbox" accessibilityState={{checked:meterConfirmed}} onPress={()=>setMeterConfirmed(!meterConfirmed)} style={s.chip}><Text style={s.label}>{meterConfirmed?'✓ ':''}I confirm {initialHours||'the reading'} {meterUnit} is correct</Text></Pressable></>:null}
-      <Text style={s.label}>Asset type</Text><View style={s.wrap}>{types.map(t=><Pressable key={t.id} style={[s.chip,typeId===t.id&&s.selectedChip]} onPress={()=>setTypeId(t.id)}><Text style={s.label}>{t.name}</Text></Pressable>)}</View>
+      <SelectField label="Asset type" value={typeId} options={types.map(t=>({value:t.id,label:t.name}))} onChange={setTypeId}/>
       <Field label="New type name" value={newType} onChangeText={setNewType}/><Button title="Create asset type" secondary disabled={busy||!newType.trim()||!writable} onPress={()=>void run(async()=>{const id=await rpc<string>('save_asset_type',{p_name:newType.trim()});setNewType('');await refresh();setTypeId(id);})}/>
       {error?<Notice text={error}/>:null}<Button title={busy?'Saving…':'Save asset'} onPress={()=>void createAsset()} disabled={busy||!writable}/>
-    </ScrollView></View></Modal>
+    </FormScroll></View></Modal>
 
-    <Modal visible={Boolean(editingMember)} animationType="slide" onRequestClose={()=>setEditingMember(null)}><View style={s.root}><ScrollView contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.title}>Edit team member</Text><Pressable onPress={()=>setEditingMember(null)}><Text style={s.link}>Close</Text></Pressable></View><Field label="Name" value={memberName} onChangeText={setMemberName}/><Field label="Phone number" value={memberPhone} onChangeText={setMemberPhone}/>{error?<Notice text={error}/>:null}<Button title={busy?'Saving…':'Save details'} disabled={busy||!writable||!memberName.trim()} onPress={()=>void run(async()=>{await rpc('save_staff_details',{p_user:editingMember!.user_id,p_name:memberName.trim(),p_phone:memberPhone.trim()});setEditingMember(null);await refresh();})}/></ScrollView></View></Modal>
+    <Modal visible={Boolean(editingMember)} animationType="slide" onRequestClose={()=>setEditingMember(null)}><View style={s.root}><FormScroll contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.title}>Edit team member</Text><Pressable onPress={()=>setEditingMember(null)}><Text style={s.link}>Close</Text></Pressable></View><Field label="Name" value={memberName} onChangeText={setMemberName}/><Field label="Phone number" value={memberPhone} onChangeText={setMemberPhone}/>{error?<Notice text={error}/>:null}<Button title={busy?'Saving…':'Save details'} disabled={busy||!writable||!memberName.trim()} onPress={()=>void run(async()=>{await rpc('save_staff_details',{p_user:editingMember!.user_id,p_name:memberName.trim(),p_phone:memberPhone.trim()});setEditingMember(null);await refresh();})}/></FormScroll></View></Modal>
 
-    <Modal visible={Boolean(selected)} animationType="slide" onRequestClose={()=>setSelected(null)}><View style={s.root}><ScrollView contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.eyebrow}>ASSET DETAILS</Text><Pressable onPress={()=>setSelected(null)}><Text style={s.link}>Close</Text></Pressable></View>
+    <Modal visible={Boolean(selected)} animationType="slide" onRequestClose={()=>setSelected(null)}><View style={s.root}><FormScroll contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.eyebrow}>ASSET DETAILS</Text><Pressable onPress={()=>setSelected(null)}><Text style={s.link}>Close</Text></Pressable></View>
       {selected?.archived?<Notice text="Archived asset — history is available. Restore it to resume work."/>:null}{admin&&selected?<AssetArchive asset={selected} writable={writable} onSaved={async()=>{setSelected(null);await refresh(false);}}/>:null}{selected?<ProfilePhoto key={selected.id} kind="asset" target={selected.id} editable={Boolean(admin)} writable={assetWritable} onChanged={()=>setPhotoVersion(v=>v+1)}/>:null}<Text style={s.title}>{selected?.name}</Text><Text style={s.muted}>{selected?.serial||'No serial recorded'}</Text><View style={s.card}><Text style={s.statNumber}>{Number(selected?.current_hours??0).toLocaleString()} <Text style={s.subtitle}>{selected?.meter_unit}</Text></Text><Text style={s.badge}>{selected?.status}</Text></View>
       {admin?<Button title="Edit asset details" secondary disabled={!assetWritable||busy} onPress={()=>{setEditingAsset(selected);setNewName(selected!.name);setSerial(selected!.serial);setTypeId(selected!.asset_type_id);setInitialHours(String(selected!.current_hours));setMeterUnit(selected!.meter_unit);setMeterReason('');setMeterConfirmed(false);setError('');setSelected(null);setShowAdd(true);}}/>:null}
       <>{selected?<View style={{gap:24}}><>{admin?<StarterLibrary asset={selected} writable={assetWritable} onApplied={()=>setScheduleVersion(v=>v+1)}/>:null}</><ServicePanel key={selected.id+scheduleVersion} asset={selected} admin={Boolean(admin)} writable={assetWritable} captureWritable={captureWritable&&!selected?.archived}/><TaskPanel key={selected.id+scheduleVersion} asset={selected} assets={activeAssets} admin={Boolean(admin)} writable={assetWritable} captureWritable={captureWritable&&!selected?.archived}/></View>:null}</>
       {admin&&selected?<ExportPanel assetId={selected.id}/>:null}<>{selected?<AssetCare key={selected.id} assetId={selected.id} admin={Boolean(admin)} writable={assetWritable} captureWritable={captureWritable&&!selected?.archived}/>:null}</>{admin&&selected?<ReadingCorrection key={selected.id+':'+selected.meter_revision} asset={selected} writable={assetWritable} onSaved={async()=>{setSelected(null);await refresh(false);}}/>:null}<Text style={s.heading}>Log a reading</Text><Field label={selected?.meter_unit==='km'?'Current odometer reading (km)':'Current meter reading (hours)'} value={hours} numeric onChangeText={v=>{pendingReading.current=null;setHours(v);}}/><Button title={busy?'Saving…':'Save reading'} onPress={()=>void saveReading()} disabled={busy||(!captureWritable||Boolean(selected?.archived))||!hours.trim()}/>
       {error?<Notice text={error}/>:null}
-      {admin?<><Text style={s.heading}>Asset status</Text><View style={s.wrap}>{statuses.map(status=><Pressable key={status} onPress={()=>setNextStatus(status)} style={[s.chip,status===nextStatus&&s.selectedChip]}><Text style={s.label}>{status}</Text></Pressable>)}</View><Field label="Reason for change" value={reason} onChangeText={setReason}/><Button title="Update status" secondary disabled={!assetWritable||busy||!reason.trim()} onPress={()=>void run(async()=>{await rpc('set_asset_status',{p_asset:selected!.id,p_status:nextStatus,p_reason:reason.trim()});setSelected(null);await refresh();})}/>
+      {admin?<><Text style={s.heading}>Asset status</Text><SelectField label="Choose status" value={nextStatus} options={statuses.map(value=>({value,label:value}))} onChange={setNextStatus}/><Field label="Reason for change" value={reason} onChangeText={setReason}/><Button title="Update status" secondary disabled={!assetWritable||busy||!reason.trim()} onPress={()=>void run(async()=>{await rpc('set_asset_status',{p_asset:selected!.id,p_status:nextStatus,p_reason:reason.trim()});setSelected(null);await refresh();})}/>
         <Text style={s.heading}>Assigned staff</Text>{members.filter(m=>m.is_active).map(m=><Pressable key={m.user_id} disabled={!assetWritable||busy} style={s.sectionRow} onPress={()=>void run(async()=>{await rpc('assign_asset',{p_asset:selected!.id,p_user:m.user_id,p_assigned:!assignmentIds.includes(m.user_id)});setAssignmentIds(ids=>ids.includes(m.user_id)?ids.filter(x=>x!==m.user_id):[...ids,m.user_id]);})}><Text style={s.label}>{m.name}</Text><Text style={s.link}>{assignmentIds.includes(m.user_id)?'Assigned ✓':'Assign +'}</Text></Pressable>)}</>:null}
       {meterChanges.length?<><Text style={s.heading}>Meter unit corrections</Text>{meterChanges.map(change=><View style={s.card} key={change.id}><Text style={s.label}>{change.details.previous_reading} {change.details.previous_unit} → {change.details.reading} {change.details.meter_unit}</Text><Text style={s.muted}>{change.reason}</Text><Text style={s.small}>{new Date(change.server_time).toLocaleString()}</Text></View>)}</>:null}
       <Text style={s.heading}>{admin?'Recent readings':'Your recent readings'}</Text>{logs.length?logs.map(log=><View style={s.card} key={log.id}><View style={s.sectionRow}><Text style={s.assetName}>{Number(log.value).toLocaleString()} {log.meter_unit}</Text><Text style={s.small}>{Number(log.delta)>=0?'+':''}{Number(log.delta)} {log.meter_unit}</Text></View><Text style={s.small}>Captured {new Date(log.capture_time).toLocaleString()}</Text><Text style={s.small}>Received {new Date(log.server_time).toLocaleString()}</Text>{log.correction_of||log.correction_of_setup?<Text style={s.small}>{log.correction_of_setup?'Correction of a setup reading':'Correction of an earlier reading'} — original retained</Text>:null}{log.reason?<Text style={s.muted}>{log.reason}</Text>:null}</View>):<Text style={s.muted}>No readings recorded yet.</Text>}
-    </ScrollView></View></Modal>
-  </View>;
+    </FormScroll></View></Modal>
+    <Modal visible={locked} animationType="none" onRequestClose={()=>{}}><View style={s.center}><Text style={s.title}>Workspace locked</Text><Text style={s.muted}>Use your device credentials to continue. Your unfinished work is kept.</Text><Button title={unlocking?'Unlocking…':'Unlock'} disabled={unlocking} onPress={()=>void unlockWorkspace()}/><Button title="Sign out" onPress={()=>void signOut()} secondary/></View></Modal>
+  </SafeAreaView>;
 }
 
 const s=StyleSheet.create({
   root:{flex:1,backgroundColor:colors.paper},center:{flex:1,backgroundColor:colors.paper,padding:28,justifyContent:'center',gap:18},
   login:{padding:28,paddingTop:74,maxWidth:580,width:'100%',alignSelf:'center',paddingBottom:50},content:{padding:24,gap:18,maxWidth:760,width:'100%',alignSelf:'center',paddingBottom:40},modal:{padding:24,paddingTop:64,gap:20,maxWidth:760,width:'100%',alignSelf:'center',paddingBottom:60},
-  top:{paddingHorizontal:24,paddingTop:58,paddingBottom:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.line},
+  top:{paddingHorizontal:24,paddingTop:12,paddingBottom:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:colors.line},
   brand:{flexDirection:'row',alignItems:'center',gap:12},mark:{backgroundColor:colors.ink,color:colors.white,width:38,height:38,borderRadius:12,textAlign:'center',fontSize:29,fontWeight:'800',lineHeight:37},brandText:{fontSize:12,letterSpacing:1.8,fontWeight:'800',color:colors.ink},
   hero:{fontSize:39,fontWeight:'700',color:colors.ink,letterSpacing:-1.4,lineHeight:44},title:{fontSize:29,fontWeight:'700',color:colors.ink,letterSpacing:-.7},heading:{fontSize:21,fontWeight:'700',color:colors.ink},subtitle:{fontSize:16,color:colors.muted,lineHeight:25},eyebrow:{fontSize:11,color:colors.green,fontWeight:'800',letterSpacing:2},
   card:{backgroundColor:colors.white,borderWidth:1,borderColor:colors.line,borderRadius:20,padding:22,gap:16},input:{backgroundColor:colors.white,borderWidth:1,borderColor:'#CBD6CC',borderRadius:12,paddingHorizontal:15,paddingVertical:14,fontSize:16,color:colors.ink,minHeight:50},label:{fontSize:14,fontWeight:'600',color:colors.ink},muted:{fontSize:14,lineHeight:22,color:colors.muted},small:{fontSize:12,lineHeight:19,color:colors.muted},
   button:{backgroundColor:colors.green,borderRadius:12,paddingHorizontal:17,paddingVertical:15,alignItems:'center',minHeight:48},secondary:{backgroundColor:'#EAF0E7'},buttonText:{fontSize:14,fontWeight:'700',color:'white'},link:{fontSize:13,fontWeight:'700',color:colors.green},notice:{backgroundColor:'#FFF0DC',padding:15,borderRadius:12},noticeText:{fontSize:14,lineHeight:21,color:'#75551F'},
   stats:{flexDirection:'row',gap:12,marginVertical:8},stat:{flex:1,padding:17,backgroundColor:'#EAF0E7',borderRadius:17,gap:5},statNumber:{fontSize:30,fontWeight:'700',color:colors.ink},sectionRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12},row:{flexDirection:'row',flexWrap:'wrap',gap:10},wrap:{flexDirection:'row',flexWrap:'wrap',gap:8},
   assetCard:{backgroundColor:colors.white,borderWidth:1,borderColor:colors.line,borderRadius:18,padding:18,flexDirection:'row',alignItems:'center',gap:14},assetIcon:{width:48,height:55,borderRadius:13,backgroundColor:'#EFF2E8',justifyContent:'center',alignItems:'center'},assetLetter:{fontSize:24,fontWeight:'700',color:colors.green},assetName:{fontSize:17,fontWeight:'700',color:colors.ink},hours:{fontSize:22,fontWeight:'700',color:colors.ink},badge:{fontSize:12,fontWeight:'700',color:colors.green},
-  tabs:{flexDirection:'row',padding:12,paddingBottom:28,backgroundColor:'white',borderTopWidth:1,borderColor:colors.line,gap:8},tab:{flex:1,alignItems:'center',padding:14,borderRadius:12},tabSelected:{backgroundColor:'#EAF0E7'},tabText:{fontSize:14,fontWeight:'700',color:colors.muted},chip:{paddingHorizontal:14,paddingVertical:13,borderRadius:12,borderWidth:1,borderColor:colors.line,backgroundColor:'white'},selectedChip:{backgroundColor:'#DDEBDD',borderColor:colors.green},
+  tabs:{flexDirection:'row',padding:12,paddingBottom:8,backgroundColor:'white',borderTopWidth:1,borderColor:colors.line,gap:8},tab:{flex:1,alignItems:'center',padding:10,gap:4,borderRadius:12},tabSelected:{backgroundColor:'#EAF0E7'},tabText:{fontSize:14,fontWeight:'700',color:colors.muted},chip:{paddingHorizontal:14,paddingVertical:13,borderRadius:12,borderWidth:1,borderColor:colors.line,backgroundColor:'white'},selectedChip:{backgroundColor:'#DDEBDD',borderColor:colors.green},
 });

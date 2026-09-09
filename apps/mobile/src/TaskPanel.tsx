@@ -1,3 +1,5 @@
+import {SelectField} from './SelectField';
+import {nativeInteraction} from './nativeInteraction';
 import {queueEntry,flushQueue} from './offlineSync';
 import React,{useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
@@ -41,9 +43,9 @@ export function TaskPanel({asset=null,assets,admin,writable,captureWritable=writ
    {admin?<Button label="Add task" press={()=>edit(null)} disabled={!writable||!today}/>:null}<Button label={archived?'Show active tasks':'Show archived tasks'} press={()=>setArchived(!archived)}/>
   </>:<View style={s.card}>
    <Text style={s.title}>{editing?'Edit task':'New task'}</Text><Field label="Task name" value={cfg.name} set={name=>setCfg({...cfg,name})}/><Field label="Instructions" value={cfg.instructions} set={instructions=>setCfg({...cfg,instructions})} multiline/>
-   <Text style={s.label}>Applies to</Text><View style={s.choices}>{[{id:null,name:'Whole business'},...assets].map(a=><Pressable key={a.id??'business'} accessibilityRole="radio" accessibilityState={{checked:scope===a.id}} style={[s.choice,scope===a.id&&s.chosen]} onPress={()=>setScope(a.id)}><Text style={s.label}>{a.name}</Text></Pressable>)}</View>
+   <SelectField label="Applies to" value={scope??'business'} options={[{value:'business',label:'Whole business'},...assets.map(a=>({value:a.id,label:a.name}))]} onChange={value=>setScope(value==='business'?null:value)}/>
    {scope===null?<><Text style={s.label}>Who needs to complete this?</Text><View style={s.choices}>{([{value:'shared',label:'One completion for everyone'},{value:'individual',label:'Each technician completes it'}] as const).map(option=><Pressable key={option.value} accessibilityRole="radio" accessibilityState={{checked:cfg.completion_mode===option.value}} style={[s.choice,cfg.completion_mode===option.value&&s.chosen]} onPress={()=>setCfg({...cfg,completion_mode:option.value})}><Text style={s.label}>{option.label}</Text></Pressable>)}</View><Text style={s.text}>{cfg.completion_mode==='individual'?'Each active technician has their own due status. New technicians are included automatically.':'Any team member can complete the shared occurrence.'}</Text>{editing&&cfg.completion_mode!==editing.config.completion_mode?<Text style={s.text}>Changing this choice starts the new completion mode. Earlier records are kept; pending submissions from the previous mode need to be reopened.</Text>:null}</>:null}
-   <Text style={s.label}>Repeats</Text><View style={s.choices}>{(['daily','weekly','fortnightly','monthly','custom'] as const).map(cadence=><Pressable key={cadence} accessibilityRole="radio" accessibilityState={{checked:cfg.cadence===cadence}} style={[s.choice,cfg.cadence===cadence&&s.chosen]} onPress={()=>setCfg({...cfg,cadence})}><Text style={s.label}>{cadence==='custom'?'Custom days':cadence[0].toUpperCase()+cadence.slice(1)}</Text></Pressable>)}</View>
+   <SelectField label="Repeats" value={cfg.cadence} options={(['daily','weekly','fortnightly','monthly','custom'] as const).map(value=>({value,label:value==='custom'?'Custom days':value[0].toUpperCase()+value.slice(1)}))} onChange={cadence=>setCfg({...cfg,cadence})}/>
    {cfg.cadence==='custom'?<Field label="Days between tasks" value={days} set={setDays}/>:null}<Field label="Next due date (YYYY-MM-DD)" value={date} set={setDate}/>
    <Text style={s.text}>{cfg.completion_mode==='individual'?'Changing the date or recurrence resets the future schedule for each technician. ':''}Late completion skips missed dates and moves to the next future date. Monthly tasks keep their intended day, using the last day of shorter months.</Text>
    <Text style={s.label}>Checklist</Text>{cfg.checklist.map((item,index)=><View key={item.id} style={s.group}><Field label={`Item ${index+1}`} value={item.label} set={label=>setCfg({...cfg,checklist:cfg.checklist.map(i=>i.id===item.id?{...i,label}:i)})}/><Button label={`Remove item ${index+1}`} press={()=>setCfg({...cfg,checklist:cfg.checklist.filter(i=>i.id!==item.id)})}/></View>)}
@@ -63,9 +65,9 @@ function TaskDetail({task,admin,writable,captureWritable,onBack,onEdit}:{task:Ta
  useEffect(()=>{live.current=true;void history();return()=>{live.current=false;files.current.forEach(deletePhoto);};},[task.id]);
  async function history(){setHistoryLoading(true);try{const rows=await rpc<History[]>('list_task_history',{p_task:task.id});if(live.current)setRecords(rows);}catch(e){if(live.current)setError(message(e));}finally{if(live.current)setHistoryLoading(false);}}
  async function pick(camera:boolean){if(busy)return;setBusy(true);setError('');try{
-  if(camera&&Platform.OS!=='web'){const permission=await ImagePicker.requestCameraPermissionsAsync();if(!permission.granted)throw Error('Allow camera access in your phone settings, or choose a photo.');}
+  if(camera&&Platform.OS!=='web'){const permission=await nativeInteraction(()=>ImagePicker.requestCameraPermissionsAsync());if(!permission.granted)throw Error('Allow camera access in your phone settings, or choose a photo.');}
   const options:ImagePicker.ImagePickerOptions={mediaTypes:['images'],quality:.8,allowsMultipleSelection:false};
-  const picked=camera?await ImagePicker.launchCameraAsync(options):await ImagePicker.launchImageLibraryAsync(options);
+  const picked=await nativeInteraction(()=>camera?ImagePicker.launchCameraAsync(options):ImagePicker.launchImageLibraryAsync(options));
   if(!picked.canceled){const image=picked.assets[0];files.current.push(image.uri);setImageReady(false);setPhoto({...image,capture:new Date().toISOString()});}
  }catch(e){setError(message(e));}finally{setBusy(false);}}
  async function save(){if(busy||!captureWritable)return;setBusy(true);setError('');try{

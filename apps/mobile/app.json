@@ -10,7 +10,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "nz.co.klever.assets"
+      "package": "nz.co.klever.assets",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-secure-store",
