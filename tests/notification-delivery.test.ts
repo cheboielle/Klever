@@ -19,6 +19,7 @@ describe('notification delivery with simulated providers',()=>{
   const push={...job,channel:'push' as const,devices:[{installation_id:'phone-1',token:'ExpoPushToken[test]'}]};
   const send=vi.fn().mockResolvedValueOnce(response({data:{status:'ok',id:'ticket-1'}})).mockResolvedValueOnce(response({data:{'ticket-1':{status:'ok'}}}));
   const first=await deliver(push,config,send);expect(first.status).toBe('awaiting_receipt');
+  expect(JSON.parse(send.mock.calls[0][1].body).data).toEqual({assetId:null,kind:'urgent_issue'});
   const second=await deliver({...push,delivery_state:first.state},config,send);expect(second.status).toBe('sent');
   expect(send.mock.calls[1][0]).toContain('getReceipts');expect(JSON.stringify(second.state)).not.toContain('ExpoPushToken');
  });

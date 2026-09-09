@@ -15,6 +15,7 @@ import {activateOffline,currentOffline,clearOffline,networkFailure,readCache,sav
 import {offlineEntryAllowed} from '../../packages/domain/src/offline';
 import {flushQueue,queueEntry,subscribeSynced} from './src/offlineSync';
 import {PendingSync} from './src/PendingSync';
+import {notificationTarget} from './src/notificationTarget';
 import {NotificationSetup} from './src/NotificationSetup';
 import {configureBackgroundSync} from './src/backgroundSync';
 import {ExportPanel} from './src/ExportPanel';
@@ -144,6 +145,21 @@ export default function App(){
       if(error)throw error;setPassword('');
     });
   }
+  async function openAlert(data:unknown):Promise<boolean>{
+    if(locked||!session||!supabase)return false;
+    const ticket=generation.current,client=supabase;
+    const target=await notificationTarget(data,Platform.OS==='web'||Boolean(access?.app_lock&&!locked),()=>rpc<Access>('access_status'),async id=>{
+      const result=await client.from('assets').select('id,asset_type_id,name,serial,status,current_hours,meter_revision,archived,meter_unit').eq('id',id).maybeSingle();
+      if(result.error)throw result.error;return result.data as Asset|null;
+    });
+    if(ticket!==generation.current)return false;
+    if(target.kind==='denied'){await signOut();return true;}
+    if(target.kind==='unlock'){await refresh();return false;}
+    if(target.kind==='asset'){setPage('assets');await openAsset(target.asset);}
+    else if(target.kind==='tasks'||target.kind==='assets'){setSelected(null);setPage(target.kind);}
+    else if(target.kind==='unavailable'){setSelected(null);setPage('assets');setError('This alert’s asset is no longer available to you.');}
+    return true;
+  }
   async function openAsset(asset:Asset){
     const ticket=++detailGeneration.current;
     setSelected(asset);setHours('');setReason('');setNextStatus(asset.status);setLogs([]);setMeterChanges([]);setAssignmentIds([]);pendingReading.current=null;
@@ -213,7 +229,7 @@ export default function App(){
     <View style={s.top}><View style={s.brand}><Text style={s.mark}>k</Text><View><Text style={s.brandText}>KLEVER ASSETS</Text><Text style={s.small}>{access.tenant_name}</Text></View></View><Pressable accessibilityRole="button" onPress={()=>void signOut()}><Text style={s.link}>Sign out</Text></Pressable></View>
     <ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={loading} onRefresh={()=>void refresh()} tintColor={colors.green}/> }>
       <Text style={s.eyebrow}>{admin?'YOUR WORKSPACE':'YOUR ASSIGNED EQUIPMENT'}</Text><Text style={s.hero}>{page==='assets'?'A clear view of\nyour equipment.':page==='tasks'?'Your shared jobs.':'Your people.'}</Text>
-      <Text style={s.subtitle}>Good to see you, {access.name?.split(' ')[0]}.</Text><NotificationSetup/>{admin?<><BusinessSettings writable={writable} onSaved={()=>refresh()}/><NotificationSettings writable={writable}/><ExportPanel/></>:null}
+      <Text style={s.subtitle}>Good to see you, {access.name?.split(' ')[0]}.</Text><NotificationSetup onOpenAlert={openAlert}/>{admin?<><BusinessSettings writable={writable} onSaved={()=>refresh()}/><NotificationSettings writable={writable}/><ExportPanel/></>:null}
       <PendingSync/>{!online&&offlineState&&!offlineEntryAllowed(offlineState)?<Notice text="Reconnect to confirm access before adding new entries. Existing pending entries are kept."/>:null}{error?<Notice text={error}/>:null}{!access.can_write?<Notice text="This workspace is read-only. Your records remain available."/>:null}
       {page==='assets'?<>
         <View style={s.stats}><View style={s.stat}><Text style={s.statNumber}>{assets.length}</Text><Text style={s.small}>Assets</Text></View><View style={s.stat}><Text style={s.statNumber}>{assets.filter(a=>a.status==='Active').length}</Text><Text style={s.small}>Active</Text></View><View style={s.stat}><Text style={s.statNumber}>{assets.filter(a=>a.status==='Workshop').length}</Text><Text style={s.small}>In workshop</Text></View></View>
