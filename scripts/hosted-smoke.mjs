@@ -158,6 +158,15 @@ try{
   assert.equal(exportResponse.status,200);const pdf=Buffer.from(await exportResponse.arrayBuffer());assert.equal(pdf.subarray(0,5).toString(),'%PDF-');mkdirSync('tmp/pdfs',{recursive:true});writeFileSync('tmp/pdfs/hosted-maintenance.pdf',pdf);pass('Hosted maintenance PDF embeds authorized service evidence');
   assert.equal((await request('/functions/v1/export-report',{method:'POST',token:tech.access_token,body:{kind:'services',assetId:assetA,format:'pdf'},allowError:true})).ok,false);
   assert.equal((await request('/functions/v1/export-report',{method:'POST',token:b.access_token,body:{kind:'services',assetId:assetA,format:'pdf'},allowError:true})).ok,false);pass('Hosted exports deny technicians and cross-business requests');
+  await rpc('save_asset_type',{p_id:typeA,p_name:'Renamed synthetic type'},a.access_token);
+  await rpc('set_asset_archived',{p_asset:assetA,p_archived:true,p_reason:'Synthetic archive check'},a.access_token);
+  assert.equal((await request('/rest/v1/assets?id=eq.'+assetA+'&select=id',{token:tech.access_token})).data.length,0);
+  assert.equal((await request('/functions/v1/service-photo',{method:'POST',body:{submissionId:photoId},token:tech.access_token,allowError:true})).ok,false);
+  assert.equal((await request('/functions/v1/service-photo',{method:'POST',body:{submissionId:photoId},token:a.access_token})).ok,true);
+  const archivedExport=(await rpc('export_data',{p_kind:'assets',p_asset:assetA},a.access_token)).rows[0];assert.equal(archivedExport.archived,true);assert.equal(archivedExport.type,'Renamed synthetic type');
+  await rpc('set_asset_archived',{p_asset:assetA,p_archived:false,p_reason:'Synthetic restore check'},a.access_token);
+  assert.equal((await request('/rest/v1/assets?id=eq.'+assetA+'&select=id',{token:tech.access_token})).data.length,1);
+  pass('Asset archive hides technician access, keeps admin photos/exports and restores existing assignments');
   await request('/rest/v1/tenants?id=eq.'+tenants[0],{method:'PATCH',body:{write_until:new Date(Date.now()-60000).toISOString()}});
   assert.equal((await request('/functions/v1/export-report',{method:'POST',token:a.access_token,body:{kind:'logs',assetId:assetA,format:'csv'}})).ok,true);
   const readOnlySettings=await rpc('business_settings',{},a.access_token);assert.equal(readOnlySettings.currency,'AUD');

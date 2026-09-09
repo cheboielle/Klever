@@ -748,6 +748,59 @@ describe('business settings and recorded currency',()=>{
  });
 });
 
+describe('asset archive and type editing',()=>{
+ let machine:string,type:string,service:string,task:any;
+ const config={name:'Archive service',instructions:'Synthetic instructions',mode:'meter',meter_unit:'hours',interval_reading:10,interval_days:null};
+ it('archives without deleting assignments, pending evidence or setup',async()=>{
+  await asUser(ownerB,async()=>{
+   type=await value("select public.save_asset_type('Archive test type')");machine=await value("select public.save_asset('Archive test asset',$1,'ARCHIVE',10)",[type]);await value('select public.assign_asset($1,$2,true)',[machine,techB]);
+   service=(await value("select public.save_service_schedule($1,$2,'asset',0,null,'last_service')",[machine,JSON.stringify(config)])).id;
+   const photo=await value('select public.prepare_service_photo($1,$2,$3,10,now(),$4,1)',[id(985),machine,service,JSON.stringify(config)]);
+   await db.query(`insert into storage.objects(bucket_id,name,metadata) values('evidence',$1,'{"size":256,"mimetype":"image/jpeg"}')`,[photo.path]);
+   const cfg={name:'Archive task',instructions:'Task instructions',cadence:'daily',days:1,checklist:[],notes_required:false,photo_required:false};
+   const taskId=(await value("select public.save_task(null,$1,$2,'2020-01-01',0)",[machine,JSON.stringify(cfg)])).id;
+   task=(await value('select public.list_tasks($1)',[machine])).items.find((t:any)=>t.id===taskId);
+   await value("select public.prepare_task($1,$2,$3,$4,$5,'[]','',now(),false)",[id(986),task.id,task.occurrence_id,task.revision,JSON.stringify(task.config)]);
+   await value("select public.report_issue($1,$2,'Urgent','Synthetic pending alert',now())",[id(987),machine]);
+   await value("select public.set_asset_archived($1,true,'Sold equipment')",[machine]);await value("select public.set_asset_archived($1,true,'Retry')",[machine]);
+   expect(Number(await value('select current_hours from public.assets where id=$1',[machine]))).toBe(10);
+   expect(await value("select count(*) from public.asset_history where asset_id=$1 and kind='archived'",[machine])).toBe(1);
+   expect((await value("select public.export_data('assets',$1)",[machine])).rows[0].archived).toBe(true);
+   expect(await value('select count(*) from public.asset_assignments where asset_id=$1',[machine])).toBe(1);
+  });
+  expect(await value("select count(*) from public.notification_outbox where payload->>'asset_id'=$1 and status<>'cancelled'",[machine])).toBe(0);
+  await asUser(techB,async()=>{expect((await db.query('select * from public.assets where id=$1',[machine])).rows).toHaveLength(0);await expect(value('select public.list_asset_services($1)',[machine])).rejects.toThrow(/unavailable/);});
+ });
+ it('blocks prepared and new work until restored, including admin submissions',async()=>{
+  await asUser(ownerB,async()=>{
+   await expect(value('select public.complete_service($1)',[id(985)])).rejects.toThrow(/archived/);
+   await expect(value('select public.complete_task($1)',[id(986)])).rejects.toThrow(/archived/);
+   await expect(value('select public.prepare_service_photo($1,$2,$3,10,now(),$4,1)',[id(988),machine,service,JSON.stringify(config)])).rejects.toThrow(/archived/);
+   await expect(value('select public.log_hours($1,$2,11,0,now())',[id(988),machine])).rejects.toThrow(/archived/);
+   expect((await value('select public.list_asset_services($1)',[machine]))[0].baseline_reading).toBe(0);
+   await value("select public.set_asset_archived($1,false,'Return to service')",[machine]);
+   expect((await value('select public.list_asset_services($1)',[machine]))[0].baseline_reading).toBe(0);
+   expect(await value('select public.complete_service($1)',[id(985)])).toMatchObject({status:'applied'});
+   expect(await value('select public.complete_task($1)',[id(986)])).toMatchObject({status:'completed'});
+  });
+  await asUser(techB,async()=>{expect((await db.query('select * from public.assets where id=$1',[machine])).rows).toHaveLength(1);});
+ });
+ it('restricts archive and rename actions, retaining admin exports while read-only',async()=>{
+  await asUser(techB,async()=>{await expect(value("select public.set_asset_archived($1,true,'Denied')",[machine])).rejects.toThrow(/Admin/);await expect(value("select public.save_asset_type('Denied',$1)",[type])).rejects.toThrow(/Admin/);});
+  await asUser(ownerA,async()=>{await expect(value("select public.set_asset_archived($1,true,'Denied')",[machine])).rejects.toThrow(/unavailable/);await expect(value("select public.save_asset_type('Denied',$1)",[type])).rejects.toThrow(/unavailable/);});
+  await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenantB]);
+  try{await asUser(ownerB,async()=>{await expect(value("select public.set_asset_archived($1,true,'Denied')",[machine])).rejects.toThrow(/read-only/);expect((await value("select public.export_data('services',$1)",[machine])).rows).toHaveLength(1);});}finally{await db.query("update public.tenants set write_until=now()+interval '30 days' where id=$1",[tenantB]);}
+ });
+ it('renames the shared type with an asset audit record without rewriting evidence',async()=>{
+  await asUser(ownerB,async()=>{
+   await value("select public.save_asset_type('Renamed type',$1)",[type]);await value("select public.save_asset_type('Renamed type',$1)",[type]);
+   expect(await value("select count(*) from public.asset_history where asset_id=$1 and kind='type_renamed'",[machine])).toBe(1);
+   expect((await value('select public.list_service_history($1,$2)',[machine,service]))[0].snapshot).toMatchObject(config);
+   expect((await value("select public.export_data('assets',$1)",[machine])).rows[0].type).toBe('Renamed type');
+  });
+ });
+});
+
 describe('current counter correction',()=>{
  let machine:string;const first=id(980),second=id(981),capture='2026-09-09T01:00:00Z';
  it('corrects a mistaken setup without fabricating an earlier reading',async()=>{
