@@ -21,7 +21,7 @@ export const supabase = configured ? createClient(url!,key!,{
 
 export async function rpc<T>(name:string,args?:Record<string,unknown>):Promise<T>{
   if(!supabase) throw new Error('The app connection has not been configured.');
-  const owner=currentOffline();const cachedReads=['list_asset_services','list_service_history','list_tasks','list_task_history','list_asset_issues','list_compliance','get_profile_photo','get_starter_library'];
+  const owner=currentOffline();const cachedReads=['list_asset_services','list_past_asset_services','list_service_history','list_tasks','list_task_history','list_asset_issues','list_compliance','get_profile_photo','get_starter_library'];
   const key=cacheKey(name,args);
   const {data,error}=await supabase.rpc(name,args);
   if(error){if(cachedReads.includes(name)&&networkFailure(error)&&owner===currentOffline()){const cached=readCache<T>(key);if(cached!==undefined)return cached;}throw Object.assign(new Error(error.message),{code:error.code});}

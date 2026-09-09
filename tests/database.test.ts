@@ -785,6 +785,19 @@ describe('asset archive and type editing',()=>{
   });
   await asUser(techB,async()=>{expect((await db.query('select * from public.assets where id=$1',[machine])).rows).toHaveLength(1);});
  });
+ it('keeps removed service evidence discoverable without exposing another performer or tenant',async()=>{
+  await asUser(ownerB,async()=>{
+   expect(await value('select public.list_past_asset_services($1)',[machine])).toEqual([]);
+   await value('select public.archive_asset_service($1,$2)',[machine,service]);
+   expect((await value('select public.list_past_asset_services($1)',[machine])).map((r:any)=>r.id)).toContain(service);
+   expect((await value('select public.list_service_history($1,$2)',[machine,service]))).toHaveLength(1);
+  });
+  await asUser(techB,async()=>{expect(await value('select public.list_past_asset_services($1)',[machine])).toEqual([]);});
+  await asUser(ownerA,async()=>{await expect(value('select public.list_past_asset_services($1)',[machine])).rejects.toThrow(/unavailable/);});
+  await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenantB]);
+  try{await asUser(ownerB,async()=>{expect(await value('select public.list_past_asset_services($1)',[machine])).toHaveLength(1);});}
+  finally{await db.query("update public.tenants set write_until=now()+interval '30 days' where id=$1",[tenantB]);}
+ });
  it('restricts archive and rename actions, retaining admin exports while read-only',async()=>{
   await asUser(techB,async()=>{await expect(value("select public.set_asset_archived($1,true,'Denied')",[machine])).rejects.toThrow(/Admin/);await expect(value("select public.save_asset_type('Denied',$1)",[type])).rejects.toThrow(/Admin/);});
   await asUser(ownerA,async()=>{await expect(value("select public.set_asset_archived($1,true,'Denied')",[machine])).rejects.toThrow(/unavailable/);await expect(value("select public.save_asset_type('Denied',$1)",[type])).rejects.toThrow(/unavailable/);});

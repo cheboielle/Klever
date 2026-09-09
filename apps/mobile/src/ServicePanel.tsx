@@ -19,6 +19,7 @@ const format=(n:number)=>Number(n).toLocaleString();
 
 export function ServicePanel({asset,admin,writable,captureWritable=writable}:{asset:Asset;admin:boolean;writable:boolean;captureWritable?:boolean}){
   const [items,setItems]=useState<Schedule[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+  const [past,setPast]=useState<{id:string;config:Config}[]>([]);
   const [completing,setCompleting]=useState<Schedule|null>(null),[historyKey,setHistoryKey]=useState(0);
   const [editor,setEditor]=useState<Schedule|null|undefined>(undefined),[expanded,setExpanded]=useState<string|null>(null),[remove,setRemove]=useState(false);
   const [name,setName]=useState(''),[instructions,setInstructions]=useState(''),[mode,setMode]=useState<Config['mode']>('meter'),[scope,setScope]=useState<'asset'|'type'>('asset');
@@ -26,7 +27,7 @@ export function ServicePanel({asset,admin,writable,captureWritable=writable}:{as
   const request=useRef(0);
   async function load(){
     const ticket=++request.current;setLoading(true);
-    try{const rows=await rpc<Schedule[]>('list_asset_services',{p_asset:asset.id});if(ticket===request.current){setItems(rows);setError('');}}
+    try{const [rows,retained]=await Promise.all([rpc<Schedule[]>('list_asset_services',{p_asset:asset.id}),rpc<{id:string;config:Config}[]>('list_past_asset_services',{p_asset:asset.id})]);if(ticket===request.current){setItems(rows);setPast(retained);setError('');}}
     catch(e){if(ticket===request.current)setError(e instanceof Error?e.message:'Unable to load services. Try again.');}
     finally{if(ticket===request.current)setLoading(false);}
   }
@@ -84,6 +85,7 @@ export function ServicePanel({asset,admin,writable,captureWritable=writable}:{as
           {admin?<Action label="Edit service schedule" onPress={()=>edit(item)} secondary disabled={!writable||busy}/>:null}
         </View>:null}
       </View>)}
+      {past.length?<View style={styles.group}><Text style={styles.heading}>Past service records</Text><Text style={styles.small}>These services are no longer on this asset's active schedule. Their submitted records and photos are retained.</Text>{past.map(item=><View key={item.id} style={styles.card}><Pressable accessibilityRole="button" onPress={()=>setExpanded(expanded===item.id?null:item.id)}><Text style={styles.name}>{item.config.name}</Text></Pressable>{expanded===item.id?<ServiceHistory asset={asset} service={{...item,settings_revision:0,baseline_reading:null,baseline_date:null}} admin={admin} writable={false} allowCorrection={false} onCorrected={()=>{}}/>:null}</View>)}</View>:null}
       {admin?<Action label="Add service schedule" onPress={()=>edit(null)} disabled={!writable||busy}/>:null}
     </>:<View style={styles.card}>
       <Text style={styles.name}>{editor?'Edit service schedule':'New service schedule'}</Text>
