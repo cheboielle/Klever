@@ -97,3 +97,6 @@ Source-control checkpoint: initial implementation committed locally. GitHub remo
 
 
 GitHub connection resolved: owner completed the secure Git Credential Manager browser sign-in. Initial implementation and status commits were successfully uploaded to https://github.com/cheboielle/Klever.git on main. Source backup is now on GitHub; database/photo recovery backups remain separate outstanding work. No application code changed in this authentication step.
+
+
+Shutdown recovery check (2026-09-09 21:46 local): Git working tree was clean at c5d6f09; source, dependencies and ignored connection configuration were present. Restarted Expo web preview on http://localhost:8081/. Metro rejected its old temporary cache and successfully rebuilt it automatically. Both HTML and application JavaScript returned HTTP 200. All 136 tests and TypeScript passed again. No application code or hosted data was changed. Preview runs in the current development-server process and stops if this computer shuts down. Resume native background/token lifecycle work and device/provider setup from the latest milestone; reminder scan and delivery remain inactive.
