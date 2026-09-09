@@ -19,3 +19,6 @@ apps/mobile/ios/
 *.p12
 *.mobileprovision
 *.tsbuildinfo
+
+__pycache__/
+*.pyc
