@@ -663,6 +663,13 @@ describe('server reminders',()=>{
 });
 
 describe('notification worker authorization and leases',()=>{
+ it('lets a phone withdraw its own registration while protecting another user and read-only data',async()=>{
+  await asUser(ownerA,()=>value("select public.register_device_token($1,'ExpoPushToken[owner-test]','ios')",[id(859)]));
+  await asUser(techA,()=>value('select public.unregister_device_token($1)',[id(859)]));
+  expect(await value('select count(*) from public.device_tokens where installation_id=$1',[id(859)])).toBe(1);
+  await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenantA]);
+  try{await asUser(ownerA,()=>value('select public.unregister_device_token($1)',[id(859)]));expect(await value('select count(*) from public.device_tokens where installation_id=$1',[id(859)])).toBe(0);}finally{await db.query("update public.tenants set write_until=now()+interval '30 days' where id=$1",[tenantA]);}
+ });
  it('keeps device registrations private and removes them with a revoked session',async()=>{
   await asUser(techA,async()=>value("select public.register_device_token($1,'ExpoPushToken[synthetic]','ios')",[id(850)]));
   await asUser(ownerA,async()=>expect((await db.query('select * from public.device_tokens')).rows).toHaveLength(0));

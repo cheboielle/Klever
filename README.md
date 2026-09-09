@@ -86,3 +86,12 @@ Apply migrations through 202609090011 and deploy `service-photo` using Supabase 
 Apply migrations through 014 and deploy export-report with Supabase CLI --use-api. Its deno.json pins pdf-lib and fontkit; the bundled Noto Sans module avoids runtime font downloads. The font license and original bytes are in its fonts directory. Admins can download business/per-asset CSV and PDFs from the app, including when read-only. Export requests use the caller's Auth session, never client-supplied tenant authority; evidence is downloaded through the protected photo endpoint.
 
 Run node scripts/pdf-proof.mts after generating the synthetic JPEG fixture used by hosted-smoke.mjs to create the long local PDF under ignored tmp/pdfs. Render it for visual inspection with Poppler. Hosted smoke checks also save a synthetic hosted PDF there. These are test artifacts, not customer records. Large report generation and native sharing still require real-data/device proof; synchronous reports currently stop above 64 MiB of downloaded photo bytes.
+
+
+## Native background and phone registration
+
+Expo BackgroundTask registers one sync job after login, requesting a 15-minute minimum interval. The OS chooses when it actually runs; this is not a promise of delivery timing or execution after force-quit. Each background batch handles up to three queued commands through the same authenticated sync coordinator. Foreground/reconnect retries continue normally. Expo Go/web cannot substitute for real native background acceptance.
+
+Migration 015 allows users to withdraw their own phone registration, including while read-only. Existing notification permission is checked on foreground, and changed native tokens are re-registered. Explicit Enable phone alerts remains the only permission prompt.
+
+For the temporary Expo build CLI on this Windows runtime, use pnpm --config.node-linker=hoisted --package=eas-cli@23.2.0 --package=ejs@3.1.10 dlx eas whoami. The account currently needs sign-in; never put an Expo password/token in source or chat.

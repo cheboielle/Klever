@@ -9,6 +9,12 @@ const access={allowed:true,user_id:'u',tenant_id:'t',role:'technician',can_write
 const reading:PendingCommand={id:'r',kind:'reading',assetId:'a',label:'Reading',args:{p_id:'r',p_value:42,p_expected_revision:0},state:'pending'};
 beforeEach(async()=>{vi.clearAllMocks();env.q=new OfflineQueue('u',{read:async()=>null,write:async()=>{},remove:async()=>{}},null);await env.q.validated(access as any);env.upload.mockResolvedValue({error:null});env.rpc.mockImplementation(async(name:string)=>name==='access_status'?access:{status:'accepted'});});
 describe('offline synchronization',()=>{
+ it('limits a background batch without dropping later durable commands',async()=>{
+  for(let i=0;i<5;i++)await env.q.enqueue({id:'issue-'+i,kind:'issue',label:'Issue',args:{p_id:'issue-'+i},state:'pending'});
+  env.rpc.mockImplementation(async(name:string)=>name==='access_status'?access:{status:'reported'});
+  expect((await flushQueue({maxCommands:3})).synced).toBe(3);expect(env.q.snapshot().commands.map((c:PendingCommand)=>c.id)).toEqual(['issue-3','issue-4']);
+  expect((await flushQueue()).synced).toBe(2);
+ });
  it('keeps a lost-acknowledgement entry and retries the same submission ID',async()=>{
   await env.q.enqueue(reading);let calls=0;env.rpc.mockImplementation(async(name:string)=>{if(name==='access_status')return access;if(++calls===1)throw Error('Network interrupted after server accepted');return {status:'accepted',duplicate:true};});
   expect((await flushQueue()).online).toBe(false);expect(env.q.snapshot().commands).toHaveLength(1);await flushQueue();expect(env.q.snapshot().commands).toHaveLength(0);expect(env.rpc.mock.calls.filter(c=>c[0]==='log_hours').map(c=>c[1].p_id)).toEqual(['r','r']);
