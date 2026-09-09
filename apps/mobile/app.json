@@ -9,7 +9,9 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {},
+    "android": {
+      "package": "nz.co.klever.assets"
+    },
     "plugins": [
       "expo-secure-store",
       [
