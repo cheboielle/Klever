@@ -488,6 +488,15 @@ describe('recurring task workflows',()=>{
    await value('select public.save_task($1,null,$2,$3,$4,true)',[shared,JSON.stringify({...config,name:'Renamed',checklist:[]}),current.next_due,current.revision]);
    expect((await list()).items).toHaveLength(0);
    expect((await value('select public.list_task_history($1)',[shared]))[0].snapshot.checklist[0].label).toBe('Oil checked');
+  });
+  await asUser(techA,async()=>{
+    expect((await value('select public.list_tasks(null,true)')).items.some((t:any)=>t.id===shared)).toBe(true);
+    const own=await value('select public.list_task_history($1)',[shared]);
+    expect(own.length).toBeGreaterThan(0);
+    await expect(value('select public.save_task($1,null,$2,$3,$4,false)',[shared,JSON.stringify(config),current.next_due,current.revision])).rejects.toThrow(/Admin/);
+  });
+  await asUser(ownerA,async()=>{
+
    const archived=(await value('select public.list_tasks(null,true)')).items.find((t:any)=>t.id===shared);
    await value('select public.save_task($1,null,$2,$3,$4,false)',[shared,JSON.stringify(archived.config),archived.next_due,archived.revision]);
    current=(await list()).items[0];

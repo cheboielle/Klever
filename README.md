@@ -69,21 +69,21 @@ Readings, issue reports, service completions and task completions use a durable 
 
 Migration 012 adds session-bound phone registrations and service-only queue claims with expiring leases. The notification-worker function uses Expo tickets/receipts and Resend idempotency keys. Provider acceptance is not proof that a person saw a message. Tests use simulated providers only.
 
-The worker is disabled by default. Before activation, configure NOTIFICATION_WORKER_SECRET, RESEND_API_KEY and a verified NOTIFICATION_FROM through Supabase's secure function settings; never put their values in source or chat. NOTIFICATIONS_ENABLED must explicitly equal true. POST calls require the matching x-worker-secret header. EXPO_ACCESS_TOKEN is optional for Expo enhanced push security. Migration 013 adds recurring rules/settings and the server scan. Apply supabase/operations/notification-schedule.sql to create its inactive cron job; activate only with delivery setup. Automatic sender invocation is still pending. Do not enable actual delivery until the development outbox has been inspected and live communications are authorized.
+The worker is disabled by default. Before activation, configure NOTIFICATION_WORKER_SECRET, RESEND_API_KEY and a verified NOTIFICATION_FROM through Supabase's secure function settings; never put their values in source or chat. NOTIFICATIONS_ENABLED must explicitly equal true. POST calls require the matching x-worker-secret header. EXPO_ACCESS_TOKEN is optional for Expo enhanced push security. Migration 013 adds recurring rules/settings and the server scan. Apply supabase/operations/notification-schedule.sql to create its inactive cron job; activate only with delivery setup. The inactive Vault-backed delivery schedule is provided in supabase/operations/notification-worker-schedule.sql; see supabase/operations/NOTIFICATIONS.md for secure setup and activation checks. Do not enable actual delivery until the development outbox has been inspected and live communications are authorized.
 
 Phone registration requires a native build and the user's notification permission. Browser preview does not register a phone. Signing and real-device delivery checks remain release gates.
 
 
 ## Service evidence downloads
 
-Apply migrations through 202609090011 and deploy `service-photo` using Supabase CLI with `--use-api`. Its config intentionally delegates JWT verification to the authenticated PostgREST authorization request. Service/task evidence and current asset/profile pictures share this endpoint. Every photo POST checks live membership/session and assignment before streaming bytes with no-store response headers. Direct client Storage reads are disabled because an actual hosted test found cached private GET responses surviving session revocation. Do not substitute signed URLs or cached Storage downloads. Uploads remain authorized by their per-submission reservation and do not allow replacement.
+Apply all current migrations and deploy `service-photo` using Supabase CLI with `--use-api`. Its config intentionally delegates JWT verification to the authenticated PostgREST authorization request. Service/task evidence and current asset/profile pictures share this endpoint. Every photo POST checks live membership/session and assignment before streaming bytes with no-store response headers. Direct client Storage reads are disabled because an actual hosted test found cached private GET responses surviving session revocation. Do not substitute signed URLs or cached Storage downloads. Uploads remain authorized by their per-submission reservation and do not allow replacement.
 
 `scripts/hosted-smoke.mjs` uses synthetic tenants/accounts and a generated `tmp/service-test.jpg`. It writes exact cleanup manifests under ignored `tmp/`. Remove test photo objects through the Storage API before executing the cleanup SQL transaction, then delete only the listed Auth test IDs. Never run destructive database resets to clean fixtures.
 
 
 ## Exports
 
-Apply migrations through 014 and deploy export-report with Supabase CLI --use-api. Its deno.json pins pdf-lib and fontkit; the bundled Noto Sans module avoids runtime font downloads. The font license and original bytes are in its fonts directory. Admins can download business/per-asset CSV and PDFs from the app, including when read-only. Export requests use the caller's Auth session, never client-supplied tenant authority; evidence is downloaded through the protected photo endpoint.
+Apply all current migrations and deploy export-report with Supabase CLI --use-api. Its deno.json pins pdf-lib and fontkit; the bundled Noto Sans module avoids runtime font downloads. The font license and original bytes are in its fonts directory. Admins can download business/per-asset CSV and PDFs from the app, including when read-only. Export requests use the caller's Auth session, never client-supplied tenant authority; evidence is downloaded through the protected photo endpoint.
 
 Run node scripts/pdf-proof.mts after generating the synthetic JPEG fixture used by hosted-smoke.mjs to create the long local PDF under ignored tmp/pdfs. Render it for visual inspection with Poppler. Hosted smoke checks also save a synthetic hosted PDF there. These are test artifacts, not customer records. Large report generation and native sharing still require real-data/device proof; synchronous reports currently stop above 64 MiB of downloaded photo bytes.
 
@@ -95,3 +95,8 @@ Expo BackgroundTask registers one sync job after login, requesting a 15-minute m
 Migration 015 allows users to withdraw their own phone registration, including while read-only. Existing notification permission is checked on foreground, and changed native tokens are re-registered. Explicit Enable phone alerts remains the only permission prompt.
 
 For the temporary Expo build CLI on this Windows runtime, use pnpm --config.node-linker=hoisted --package=eas-cli@23.2.0 --package=ejs@3.1.10 dlx eas whoami. The account currently needs sign-in; never put an Expo password/token in source or chat.
+
+
+## Current acceptance and recovery status
+
+BUILD_STATUS.md is the current milestone and validation record. Database and photo backup tools and a verified local restore rehearsal are documented in scripts/RECOVERY.md. Daily offsite backups and a separate hosted restore remain unverified; local copies are not that coverage. Native device acceptance, Expo sign-in, notification sender setup and the legacy export/media are still needed before Stage A proof. Keep notifications inactive until the documented setup and authorized delivery checks are complete.
