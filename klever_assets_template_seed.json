@@ -1,0 +1,523 @@
+{
+  "schema_version": "1.0",
+  "title": "Klever Assets — Truckmount Template Seed Library",
+  "source": "Truckmount Maintenance Master Schedule (supplied)",
+  "generated": "2026-09-07",
+  "loader_notes": {
+    "onboarding": "When a tenant picks a model during onboarding: look it up in model_index -> get family_key -> create service_types from that family PLUS the universal_daily_tasks.",
+    "engine_less_families": "For families where engine_less = true, do NOT create any engine-oil service, surface engine_maintenance_note to the user, and filter out universal daily checklist items where engine_only = true.",
+    "interval_ranges": "interval_hours / interval_days are the CONSERVATIVE default. Where a manufacturer range exists it is in recommended_note. Admin may adjust per service.",
+    "trigger_modes": "'hours' uses interval_hours; 'calendar' uses interval_days; 'both' uses both and fires on whichever threshold is reached first.",
+    "daily_tasks": "universal_daily_tasks are recurring daily checklist tasks (task_completions.checklist_state records which items were done), not service_types.",
+    "customisation": "All seeded records are normal editable config once applied to a tenant — the tenant owns their copy and can edit intervals, add/remove services, etc."
+  },
+  "trigger_modes": [
+    "hours",
+    "calendar",
+    "both"
+  ],
+  "universal_daily_tasks": [
+    {
+      "key": "pre_flight",
+      "name": "Pre-Flight (Daily Startup)",
+      "type": "task",
+      "trigger_mode": "calendar",
+      "interval_days": 1,
+      "requires_photo": false,
+      "requires_notes": false,
+      "checklist_items": [
+        {
+          "text": "Check engine oil dipstick",
+          "engine_only": true
+        },
+        {
+          "text": "Check high-pressure pump sight glass and vacuum blower sight-level windows",
+          "engine_only": false
+        },
+        {
+          "text": "Clean the garden-hose inlet filter screen",
+          "engine_only": false
+        }
+      ]
+    },
+    {
+      "key": "post_run",
+      "name": "Post-Run (End of Day)",
+      "type": "task",
+      "trigger_mode": "calendar",
+      "interval_days": 1,
+      "requires_photo": false,
+      "requires_notes": false,
+      "checklist_items": [
+        {
+          "text": "Empty and flush the waste recovery tank completely",
+          "engine_only": false
+        },
+        {
+          "text": "Clean the internal lint filter basket",
+          "engine_only": false
+        },
+        {
+          "text": "Spray a 5-second burst of rust-inhibiting lubricant into the vacuum blower lubrication port while running under mild load",
+          "engine_only": false
+        }
+      ]
+    }
+  ],
+  "brands": [
+    {
+      "brand": "HydraMaster",
+      "families": [
+        {
+          "family_key": "hydramaster_air_cooled_slidein",
+          "family_name": "Air-Cooled Slide-In Family",
+          "characteristic": "Standalone machines with an air-cooled engine (Briggs & Stratton / Kohler); run hotter, oil shears down fast.",
+          "engine_less": false,
+          "models": [
+            "Boxxer 318",
+            "Boxxer 423s",
+            "Boxxer XL",
+            "Titan 325",
+            "Titan 425",
+            "TMTG 4000"
+          ],
+          "service_types": [
+            {
+              "name": "Change engine oil + oil filter",
+              "trigger_mode": "hours",
+              "interval_hours": 25,
+              "interval_days": null,
+              "instructions": "Change the engine oil and replace the engine oil filter.",
+              "recommended_note": "Manufacturer range 25-50 h; use 25 h in hot summer climates."
+            },
+            {
+              "name": "Check spark plugs, air filters + inspect coupler element",
+              "trigger_mode": "hours",
+              "interval_hours": 100,
+              "interval_days": null,
+              "instructions": "Check/clean engine spark plugs and air filters. Inspect the direct-drive coupler element on coupler-driven units (e.g. Boxxer XL).",
+              "recommended_note": "Manufacturer range 100-250 h."
+            },
+            {
+              "name": "Change HP pump oil + vacuum blower gear oil",
+              "trigger_mode": "hours",
+              "interval_hours": 500,
+              "interval_days": null,
+              "instructions": "Change the high-pressure water pump oil and change the vacuum blower gear oil.",
+              "recommended_note": ""
+            }
+          ]
+        },
+        {
+          "family_key": "hydramaster_liquid_cooled_slidein",
+          "family_name": "Liquid-Cooled Slide-In Family",
+          "characteristic": "Standalone machines with a liquid-cooled engine (radiator + coolant); regulate heat better, roughly double the oil life of the air-cooled family.",
+          "engine_less": false,
+          "models": [
+            "Titan 575",
+            "Titan 625"
+          ],
+          "service_types": [
+            {
+              "name": "Change engine oil + oil filter",
+              "trigger_mode": "hours",
+              "interval_hours": 100,
+              "interval_days": null,
+              "instructions": "Change the engine oil and replace the engine oil filter.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Check radiator coolant + inspect engine belts",
+              "trigger_mode": "hours",
+              "interval_hours": 250,
+              "interval_days": null,
+              "instructions": "Check radiator coolant levels and inspect engine belts.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Change HP pump oil + vacuum blower gear oil + spark plugs/fuel filters",
+              "trigger_mode": "hours",
+              "interval_hours": 500,
+              "interval_days": null,
+              "instructions": "Change the high-pressure water pump oil, change the vacuum blower gear oil, and replace spark plugs/fuel filters.",
+              "recommended_note": ""
+            }
+          ]
+        },
+        {
+          "family_key": "hydramaster_cds_direct_drive",
+          "family_name": "Direct-Drive (CDS) Family",
+          "characteristic": "No standalone engine; a clutch connects directly to the van's engine via a drive shaft.",
+          "engine_less": true,
+          "engine_maintenance_note": "No standalone engine on this machine — engine maintenance is done as normal van vehicle/chassis servicing. Track via the van's odometer / vehicle service milestones (odometer tracking is a Phase 2 feature).",
+          "models": [
+            "CDS 4.6",
+            "CDS 4.8",
+            "CDS 4.8SV",
+            "CDS xDrive"
+          ],
+          "service_types": [
+            {
+              "name": "Check drive-shaft alignment, bearings + front-end fasteners",
+              "trigger_mode": "both",
+              "interval_hours": 100,
+              "interval_days": 30,
+              "instructions": "Check the machine's drive-shaft alignment, greasable bearings, and front-end vehicle fasteners.",
+              "recommended_note": "Every 100 h OR monthly, whichever comes first."
+            },
+            {
+              "name": "Change HP pump oil + vacuum blower gear oil",
+              "trigger_mode": "hours",
+              "interval_hours": 400,
+              "interval_days": null,
+              "instructions": "Change the high-pressure pump oil and the vacuum blower gear oil.",
+              "recommended_note": "Manufacturer range 400-500 h."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Sapphire Scientific",
+      "families": [
+        {
+          "family_key": "sapphire_air_cooled_efi",
+          "family_name": "Air-Cooled / Standard EFI Slide-Ins",
+          "characteristic": "Standalone air-cooled Kohler / small-block units (some EFI); rely on constant air flow to shed heat, standard thermal load on the oil.",
+          "engine_less": false,
+          "models": [
+            "Sapphire 370",
+            "Sapphire 370 EFI",
+            "Sapphire 460SS"
+          ],
+          "service_types": [
+            {
+              "name": "Change engine oil + oil filter",
+              "trigger_mode": "hours",
+              "interval_hours": 50,
+              "interval_days": null,
+              "instructions": "Change the engine oil and replace the engine oil filter.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Check air filter, spark plugs + water-pump belt tension",
+              "trigger_mode": "hours",
+              "interval_hours": 100,
+              "interval_days": null,
+              "instructions": "Check engine air filter, inspect spark plugs, and check water pump drive belt tension.",
+              "recommended_note": "Manufacturer range 100-250 h."
+            },
+            {
+              "name": "Change HP pump oil + vacuum blower gear-end oil + spark plugs",
+              "trigger_mode": "hours",
+              "interval_hours": 500,
+              "interval_days": null,
+              "instructions": "Change high-pressure water pump oil, change vacuum blower gear-end oil, and replace spark plugs.",
+              "recommended_note": ""
+            }
+          ]
+        },
+        {
+          "family_key": "sapphire_liquid_cooled_hd",
+          "family_name": "Liquid-Cooled Heavy-Duty Slide-Ins",
+          "characteristic": "High-power multi-cylinder liquid-cooled Kubota / industrial engines with automotive-style radiators; smooth combustion temps prevent rapid oil breakdown.",
+          "engine_less": false,
+          "models": [
+            "Sapphire Apex 570",
+            "Sapphire Everest 870HP"
+          ],
+          "service_types": [
+            {
+              "name": "Change engine oil + oil filter",
+              "trigger_mode": "hours",
+              "interval_hours": 100,
+              "interval_days": null,
+              "instructions": "Change the engine oil and replace the engine oil filter.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Flush heat-exchanger manifold, check radiator coolant + spark plugs",
+              "trigger_mode": "hours",
+              "interval_hours": 250,
+              "interval_days": null,
+              "instructions": "Flush/clean the heat exchanger manifold, inspect radiator coolant levels, and check spark plugs.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Full vacuum blower oil change + HP pump oil + fuel filters",
+              "trigger_mode": "hours",
+              "interval_hours": 500,
+              "interval_days": null,
+              "instructions": "Perform a full vacuum blower oil change (dual splash-bath lubrication points), change high-pressure pump oil, and replace fuel filters.",
+              "recommended_note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Prochem",
+      "families": [
+        {
+          "family_key": "prochem_air_cooled_legacy",
+          "family_name": "Air-Cooled Legacy Workhorses",
+          "characteristic": "Popular legacy air-cooled slide-ins; many older carbureted units suffer higher carbon build-up than modern EFI machines.",
+          "engine_less": false,
+          "models": [
+            "Prochem Blazer",
+            "Prochem Blazer GT",
+            "Prochem Legend",
+            "Prochem Legend GT"
+          ],
+          "service_types": [
+            {
+              "name": "Change engine oil + oil filter",
+              "trigger_mode": "hours",
+              "interval_hours": 25,
+              "interval_days": null,
+              "instructions": "Change the engine oil and replace the engine oil filter.",
+              "recommended_note": "Manufacturer range 25-50 h; 25 h strictly advised in hot climate operation."
+            },
+            {
+              "name": "Clean/re-gap spark plugs + inspect carburetor linkages + air filter",
+              "trigger_mode": "hours",
+              "interval_hours": 100,
+              "interval_days": null,
+              "instructions": "Pull, clean, and re-gap spark plugs to remove carbon fouling. Inspect carburetor linkages and air filter elements.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Mechanical oil drain+refill: water-pump crankcase + blower gear chambers",
+              "trigger_mode": "hours",
+              "interval_hours": 500,
+              "interval_days": null,
+              "instructions": "Complete mechanical oil drain and refill for both the water pump crankcase and the vacuum blower gear chambers.",
+              "recommended_note": ""
+            }
+          ]
+        },
+        {
+          "family_key": "prochem_liquid_cooled_premium",
+          "family_name": "Liquid-Cooled Premium Lines",
+          "characteristic": "Larger multi-wand setups with liquid-cooled Nissan / Kubota engines; independent fluid cooling separates engine heat from the blower, extending oil life.",
+          "engine_less": false,
+          "models": [
+            "Prochem Peak",
+            "Prochem Peak 500",
+            "Prochem Performer 405",
+            "Prochem Performer Signature"
+          ],
+          "service_types": [
+            {
+              "name": "Change engine oil + oil filter",
+              "trigger_mode": "hours",
+              "interval_hours": 100,
+              "interval_days": null,
+              "instructions": "Change the engine oil and replace the engine oil filter.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Inspect drive belts + check radiator reserve tank",
+              "trigger_mode": "hours",
+              "interval_hours": 250,
+              "interval_days": null,
+              "instructions": "Inspect engine drive belts for cracks or checking. Check radiator reserve tank fluid levels.",
+              "recommended_note": ""
+            },
+            {
+              "name": "Flush/change HP pump oil + vacuum blower gear oil + spark plugs/fuel filters",
+              "trigger_mode": "hours",
+              "interval_hours": 500,
+              "interval_days": null,
+              "instructions": "Flush and change high-pressure pump oil, change vacuum blower gear oil, and replace spark plugs/fuel filters.",
+              "recommended_note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Cleanco",
+      "families": [
+        {
+          "family_key": "cleanco_direct_drive_pto",
+          "family_name": "Direct-Drive / PTO Systems",
+          "characteristic": "The dominant competitor to HydraMaster's CDS line. No standalone engine; under-van drive shaft bolted to a heavy-duty PTO / clutch integration spins the core modules.",
+          "engine_less": true,
+          "engine_maintenance_note": "No standalone engine on this machine — engine maintenance is done as normal van vehicle/chassis servicing. Track via the van's odometer / vehicle service milestones (odometer tracking is a Phase 2 feature).",
+          "models": [
+            "Cleanco Compact 45",
+            "Cleanco Compact 47",
+            "Cleanco Compact 56",
+            "Cleanco E-Zee"
+          ],
+          "service_types": [
+            {
+              "name": "Grease drive-shaft U-joints + inspect bearings/fasteners/clutch brackets",
+              "trigger_mode": "hours",
+              "interval_hours": 100,
+              "interval_days": null,
+              "instructions": "Grease the under-van drive shaft universal joints (U-joints). Inspect the drive shaft centre support bearings, alignment fasteners, and vehicle safety-clutch brackets.",
+              "recommended_note": "Critical integration check."
+            },
+            {
+              "name": "Drain+replace HP pump oil + vacuum blower gear-bath lubricant",
+              "trigger_mode": "hours",
+              "interval_hours": 400,
+              "interval_days": null,
+              "instructions": "Drain and replace the high-pressure water pump oil and the vacuum blower gear-bath lubricant.",
+              "recommended_note": "Manufacturer range 400-500 h."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "model_index": [
+    {
+      "model": "Boxxer 318",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_air_cooled_slidein"
+    },
+    {
+      "model": "Boxxer 423s",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_air_cooled_slidein"
+    },
+    {
+      "model": "Boxxer XL",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_air_cooled_slidein"
+    },
+    {
+      "model": "Titan 325",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_air_cooled_slidein"
+    },
+    {
+      "model": "Titan 425",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_air_cooled_slidein"
+    },
+    {
+      "model": "TMTG 4000",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_air_cooled_slidein"
+    },
+    {
+      "model": "Titan 575",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_liquid_cooled_slidein"
+    },
+    {
+      "model": "Titan 625",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_liquid_cooled_slidein"
+    },
+    {
+      "model": "CDS 4.6",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_cds_direct_drive"
+    },
+    {
+      "model": "CDS 4.8",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_cds_direct_drive"
+    },
+    {
+      "model": "CDS 4.8SV",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_cds_direct_drive"
+    },
+    {
+      "model": "CDS xDrive",
+      "brand": "HydraMaster",
+      "family_key": "hydramaster_cds_direct_drive"
+    },
+    {
+      "model": "Sapphire 370",
+      "brand": "Sapphire Scientific",
+      "family_key": "sapphire_air_cooled_efi"
+    },
+    {
+      "model": "Sapphire 370 EFI",
+      "brand": "Sapphire Scientific",
+      "family_key": "sapphire_air_cooled_efi"
+    },
+    {
+      "model": "Sapphire 460SS",
+      "brand": "Sapphire Scientific",
+      "family_key": "sapphire_air_cooled_efi"
+    },
+    {
+      "model": "Sapphire Apex 570",
+      "brand": "Sapphire Scientific",
+      "family_key": "sapphire_liquid_cooled_hd"
+    },
+    {
+      "model": "Sapphire Everest 870HP",
+      "brand": "Sapphire Scientific",
+      "family_key": "sapphire_liquid_cooled_hd"
+    },
+    {
+      "model": "Prochem Blazer",
+      "brand": "Prochem",
+      "family_key": "prochem_air_cooled_legacy"
+    },
+    {
+      "model": "Prochem Blazer GT",
+      "brand": "Prochem",
+      "family_key": "prochem_air_cooled_legacy"
+    },
+    {
+      "model": "Prochem Legend",
+      "brand": "Prochem",
+      "family_key": "prochem_air_cooled_legacy"
+    },
+    {
+      "model": "Prochem Legend GT",
+      "brand": "Prochem",
+      "family_key": "prochem_air_cooled_legacy"
+    },
+    {
+      "model": "Prochem Peak",
+      "brand": "Prochem",
+      "family_key": "prochem_liquid_cooled_premium"
+    },
+    {
+      "model": "Prochem Peak 500",
+      "brand": "Prochem",
+      "family_key": "prochem_liquid_cooled_premium"
+    },
+    {
+      "model": "Prochem Performer 405",
+      "brand": "Prochem",
+      "family_key": "prochem_liquid_cooled_premium"
+    },
+    {
+      "model": "Prochem Performer Signature",
+      "brand": "Prochem",
+      "family_key": "prochem_liquid_cooled_premium"
+    },
+    {
+      "model": "Cleanco Compact 45",
+      "brand": "Cleanco",
+      "family_key": "cleanco_direct_drive_pto"
+    },
+    {
+      "model": "Cleanco Compact 47",
+      "brand": "Cleanco",
+      "family_key": "cleanco_direct_drive_pto"
+    },
+    {
+      "model": "Cleanco Compact 56",
+      "brand": "Cleanco",
+      "family_key": "cleanco_direct_drive_pto"
+    },
+    {
+      "model": "Cleanco E-Zee",
+      "brand": "Cleanco",
+      "family_key": "cleanco_direct_drive_pto"
+    }
+  ]
+}

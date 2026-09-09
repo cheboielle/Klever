@@ -1,0 +1,93 @@
+# Klever Assets build status
+
+Updated: 9 September 2026.
+
+## Current stage
+
+Stage A is in progress. A1 database/access foundation is deployed to the supplied development Supabase project; A2 asset/team/readings and service and recurring task screens are implemented and usable in the local preview. Stage A is not complete. No signed native build, store submission, production release, live notifications, billing, or legacy cutover has occurred.
+
+## Projects and access
+
+- GitHub origin: https://github.com/cheboielle/Klever.git. Remote empty at initial inspection. Local main initialized; no commits/push yet. Git author identity still unconfigured.
+- Supabase: https://blzubtujrxpcnfphcrny.supabase.co. CLI login/link established. Publishable key in ignored apps/mobile/.env.local. Administration keys used only in process memory.
+- Migrations 202609090001 foundation, 202609090002 meter units, 202609090003 editable details, 202609090004 service schedules, 202609090005 service evidence, 202609090006 private photo downloads, 202609090007 service corrections, 202609090008 tasks, 202609090009 profile photos, 202609090010 starter library, and 202609090011 issues/compliance are applied. The service-photo Edge Function is deployed. Hosted signup disabled, development redirect configured, upload limit 10 MiB. Other hosted settings preserved.
+- Owner che@klever.co.nz provisioned with 90 days of explicit internal development access. Owner confirmed successful login. Private setup helper has stopped. Six-character minimum requested by owner and recorded in Supabase config.
+- Expo project a33d4b36-8e52-4f3f-9de9-b960fac88b3b configured with slug klever-nz. Signing, package/bundle IDs and EAS ownership not yet verified. Owner has both phone platforms.
+- Local preview: http://localhost:8081/ while the development server runs. Browser preview sessions are memory-only; reloads may require login. Native credentials use SecureStore.
+
+## Authoritative instructions
+
+Read AGENTS.md, Klever_Assets_Build_Spec_v4_1.md and Klever_Assets_Implementation_Plan_v4_1.md. Historical v4 documents are superseded. JSON/PDF schedules remain unverified starter guidance. Existing assets.klever.co.nz is a potential migration source only; do not copy its design.
+
+## Implemented
+
+- Expo SDK 57 app: login, live access checks, optional device lock, asset register/search, asset/type creation, status/assignment controls, online meter readings and history, staff deactivation/remote sign-out.
+- Admin asset editing: name, serial, type; Hours/Kilometres correction with explicit current reading, reason and confirmation. Corrections preserve prior reading units, append audit details and advance the meter revision. Stale old-unit readings cannot overwrite the corrected meter. Cross-unit correction targets are rejected.
+- Admin team editing: name and phone number for existing members, with role/access/credentials unchanged. Add-team-member remains planned; owner explicitly said not to reprioritize invitations.
+- Editable asset photos and team profile pictures support camera/gallery, preview, upload retry, replacement and removal. Asset register thumbnails use the private current image. Only admins edit these photos; readers retain parent asset/profile permissions. A new upload is finalized before replacing the current picture; obsolete pictures are no longer downloadable through the client. Service/task evidence is unchanged.
+- Protected PostgreSQL commands/RLS for tenants, role/assignment limits, owner/seat invariants, live Auth sessions, immutable readings and private default-deny media bucket.
+- Service scheduling supports per-asset definitions, type defaults, asset overrides, separate baselines, Hours/Km/Calendar/Both server-calculated due states, editing and per-asset archival.
+- Online service completion requires live-camera capture, an embedded capture timestamp and successful binary JPEG upload. Completion is idempotent and advances baselines once. Delayed submissions preserve evidence with pending_correction state. Private admin cost/notes are separate; history/photo views enforce actor/assignment permissions.
+- Admin service correction/void controls require a reason and explicit replacement baseline, append correction records, preserve original evidence, and safely retry without duplicates.
+- Recurring asset/business tasks: daily/weekly/fortnightly/monthly/custom calendar schedules, stable checklist items, editable configuration, archive/restore, required notes/photos, camera/gallery attachment, private history and admin void corrections that retain original evidence.
+- Business tasks let admins choose one completion for everyone or individual completion by each active technician. Separate technician occurrences advance independently; admin progress shows who is still due. Newly enrolled/reactivated technicians are included, inactive staff excluded from outstanding work. Mode changes preserve history and invalidate pending work from the previous mode.
+- Task finalization requires uploaded JPEG evidence when configured, serializes competing submissions, and advances a late task to its next future scheduled date. Monthly recurrence preserves its intended day through short months. Readings, issues, service and task submissions now use the durable local queue described below.
+
+- Truckmount starter library preserves all supplied model/family mappings, service intervals and recommendation notes. Admins preview and acknowledge starter guidance before per-asset application. Atomic retries do not duplicate setup or overwrite edits. Baselines remain unknown until entered. Engine-less families exclude engine-only daily checks; hour templates cannot be applied to kilometre assets. The obsolete Phase 2 odometer sentence is omitted from displayed vehicle guidance, with the original source JSON preserved.
+- Assigned technicians/admins report issues with immutable description, urgency, performer/asset snapshots and both timestamps. Admins append resolution notes. Urgent reports enqueue one push and email entry per active admin/owner in a durable outbox; the sender is deployed but disabled pending provider setup and authorization.
+- Compliance dates support labels, renewal, reminder lead days (30/7 defaults), assigned-recipient option, archive/restore, version checks and asset audit history. Reminder delivery remains in A3.
+
+## Latest verification
+
+- 136 local tests passed using actual migrations and RLS in PGlite with synthetic managed Auth/Storage fixtures. TypeScript passed.
+- 27 hosted checks passed using temporary users in two businesses, including edits, meter corrections, assignment/tenant isolation, required JPEG upload, private downloads, service/task corrections with safe retries, shared task deduplication, separate technician progress, asset/profile photo upload/replacement/removal, template deduplication, urgent-issue queuing/resolution, compliance renewal, session revocation and deactivation. Synthetic photos, records, queued notifications and all four Auth test accounts were removed successfully after this run.
+- iOS, Android and web JavaScript bundles exported successfully with the library, issue and compliance screens alongside all earlier workflows. Expo dependency compatibility also passed. These are not signed binaries or device proofs.
+- Signed-in browser inspected: asset edit form prepopulates fields; changing unit reveals current reading/reason/confirmation; team edit shows name/phone. Forms closed without saving changes to user records.
+- Actual Supabase refresh-token cascade to sessions verified. Hosted media upload/download/revocation checks now pass. Hosted read-only transitions and actual camera/push/lock behaviour on phones still need coverage.
+
+## Next work
+
+Continue with A2 usability/device checks and A3 offline device proof, notification scheduling/provider activation and exports; A4 import/media, guidance checks, backup/restore and Klever dogfooding. Stage B portal, invitations, billing and release follow the core proof gate. No legacy export has been supplied. Staff onboarding remains in the established plan.
+
+Submission IDs, command payloads and queued photos persist across app restarts. Native airplane-mode/restart proof is still outstanding. Camera code compiles but real-device capture/watermark/permissions are not yet verified. Native push/lock proof, backup/media restore, exports and migration are not complete. README.md documents setup/testing commands. Do not claim Stage A acceptance yet.
+
+## Owner-directed refinements
+
+Hours/Kilometres selection and later correction explicitly override the original odometer exclusion. Future service baselines/countdowns/exports must use the selected unit; changing unit requires explicit baseline re-entry, never automatic conversion of hour templates or past evidence. Numeric columns/RPCs with historical hours names are retained for compatibility and qualified by meter_unit.
+
+PGlite substitutes for unavailable Docker for local database tests; hosted HTTP tests remain a separate gate. No other product-scope changes.
+
+
+Photo download implementation note: hosted testing exposed CDN reuse of an authenticated Storage GET after session revocation. Direct client reads are now disabled by migration 006. The service-photo POST endpoint verifies the caller's JWT via PostgREST and performs a fresh live-session/assignment/evidence check before streaming bytes with no-store headers. Gateway verify_jwt=false is deliberate: authentication/authorization occurs through that database request, not by trusting a client body or unverified claims. Never replace this endpoint with signed URLs or direct cached Storage downloads. New uploads specify zero cache age.
+
+Service setup forms were inspected in the signed-in browser without saving user data. No camera was activated by the builder; hosted evidence was a generated synthetic JPEG. Native camera verification remains required.
+
+Owner addition: editable team profile pictures are required. Asset photos were already scoped. Both camera/gallery flows are now implemented in the planned setup/media work. They are replaceable private configuration images, not immutable service evidence.
+
+Task milestone verification: actual hosted photo upload/download and next-request revocation passed for task evidence as well as service evidence. The browser preview was inspected at its sign-in screen; the new signed-in task forms have not yet been visually inspected. Native camera/gallery behaviour still needs actual phone testing. No user records were changed by these tests.
+
+Owner addition (9 September 2026): company-wide tasks must offer shared or per-technician completion (example: each technician washes their own van). This explicitly supersedes the original shared-only restriction and is implemented in migration 008 and TaskPanel. Tasks and instruction snapshots retain their completion mode.
+
+Profile-photo milestone: migration 009 and updated photo endpoint deployed to the development project. All 86 local tests, TypeScript and all three platform exports passed; 24 hosted checks passed. Browser preview was at the sign-in screen, so signed-in visual inspection of these new controls is still pending. Actual phone camera/gallery capture is unverified. Superseded configuration photo bytes remain private and require the planned unreferenced-media cleanup/retention job; removing a picture withdraws client access immediately.
+
+Library/issues/compliance milestone: migrations 010–011 deployed to the development Supabase project; 100 local tests and TypeScript passed, 24 hosted checks passed, and iOS/Android/web JS exports passed. Signed-in visual checks remain pending because the browser preview was at login. No manufacturer verification was performed or claimed. Urgent notifications are queued only; scheduled compliance reminders and actual push/email delivery are not implemented. Synthetic outbox entries were deleted in the verified fixture cleanup.
+
+Offline milestone in progress: AsyncStorage 2.2.0 stores account-scoped snapshots and serialized commands; native photo copies use app document storage and web preview photo blobs use IndexedDB. Read/service/task/issue forms queue before acknowledging save. Foreground polling, explicit retry and reconnect refresh revalidate access; server denial never falls back to cached reads. The 24-hour entry window is capped by the known access end, while already queued work survives expiry/read-only. Confirmed access revocation or sign-out clears local cache, queue and media. Pending readings support ordered later readings/services; a blocked reading does not stop independent issues. Pending controls allow explicit confirmation/review of readings and confirmed removal of blocked local copies.
+
+116 tests now pass, including actual sync-coordinator tests with stubbed transports for upload failure, lost acknowledgements, required photo ordering, role/cache isolation and revocation. TypeScript and all three platform exports passed after integration. Real iOS/Android airplane-mode restart, background execution and native secure-storage refresh behaviour remain unverified. Expired credentials are read from existing SecureStore only after a network refresh failure to identify the cached account; they do not extend server auth or the verified offline window. Service/task photo views currently need a connection after upload; locally queued photos are retained until server acknowledgement. No backend migration or hosted fixture run was needed for this client-only queue change.
+
+
+Notification delivery foundation (9 September 2026): migration 202609090012 and the notification-worker function are deployed to the development project. Device registrations are private, session-bound and removed by remote sign-out. Service-only expiring leases prevent simultaneous claims; stale worker acknowledgements are rejected. Delivery records retain retry/receipt state, handle invalid phone tokens and cancel queued operational messages for inactive recipients or read-only tenants. Expo ticket acceptance is followed by receipt checks; Resend retries reuse the job ID and stop before its deduplication window expires. Worker configuration is disabled by default; no provider credentials or activation secret were configured and no real messages were sent. The native enable-alerts control registers a phone after explicit permission. Recurring rules, server scheduling, automatic invocation, token refresh integration and real-phone delivery remain outstanding.
+
+Final verification for this session: 126 local tests passed (including database isolation and simulated provider failures), TypeScript passed, and web/iOS/Android JavaScript exports passed. Five hosted schema/privilege assertions passed for the new migration; the deployed worker's unauthenticated request returned 401. The earlier 24 hosted workflow checks remain the latest full synthetic workflow run; no new business fixtures were created this session. This is development deployment only, with no signed native binary or Stage A acceptance.
+
+Next action: implement the scoped recurring notification rules/settings and server scheduler, then CSV/maintenance-PDF exports. Provider setup and actual phone checks can be collected together when needed. Continue autonomously through ordinary development work; owner explicitly requested no step-by-step permission checks.
+
+
+Reminder/export milestone (9 September 2026): migrations 013–014 are deployed. Admin reminder settings expose recipients, channels, local time, weekdays and business timezone. Server scans cover missing daily meter logs, task due/overdue with seven-day admin escalation, independent technician task occurrences, service due transitions/reminders and compliance lead dates; issue and assignment changes enqueue transactionally. Urgent minimum channels remain unchanged. Delivery rechecks current asset assignments. Local-date occurrence keys suppress retries/repeated daylight-saving hours; skipped times run at the next valid minute. The hosted klever-reminder-scan cron job exists and is INACTIVE. Delivery activation, worker invocation and actual phone notification tests remain pending provider configuration. No real notifications sent.
+
+Admin CSV/PDF exports now cover asset registers, readings, service history and completed task history, with per-asset or business scope. Export access is server-enforced and remains available while read-only. Maintenance PDFs include original unit/readings, saved names/instructions, both timestamps, correction records and actual embedded photos. Missing recorded photo paths are identified; failed downloads abort the report rather than silently omit expected evidence. Noto Sans (SIL OFL) preserves Māori names; CSV quoting protects spreadsheet-formula input. Native exports use the share/save sheet with temporary file cleanup; web preview downloads files. export-report Edge Function is deployed; all reads/photos retain the caller's live authorization and a final access recheck.
+
+Verification: 136 local tests passed and TypeScript passed. iOS/Android/web JS exports passed. A synthetic 13-page maintenance PDF was rendered and visually inspected; text extraction verified Unicode/corrections and 11 embedded images. The hosted PDF also rendered successfully with real uploaded synthetic JPEG evidence. 27 hosted workflow checks passed, including PDF, export isolation and read-only exports. All five synthetic photos, fixture records/outbox entries and four Auth accounts were cleaned up successfully. No real user records were edited by verification. New signed-in UI and native share-sheet behaviour still require device testing.
+
+Remaining limits: export generation is synchronous and aborts above 64 MiB of fetched photo bytes; large real datasets need measured hosting tests and background processing if required. No large-report acceptance claim. Reporting-currency setup, source-control backup, native background execution/token refresh integration, real-device offline/camera/lock/push/sharing proof, provider activation, legacy import and combined database/media backup/restore remain to complete Stage A. Core web portal/billing still follow Stage A proof.

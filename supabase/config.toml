@@ -1,0 +1,38 @@
+project_id = "klever-assets"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:8081"
+additional_redirect_urls = ["kleverassets://reset-password"]
+jwt_expiry = 3600
+enable_signup = false
+minimum_password_length = 6
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+
+[functions.service-photo]
+# JWT is verified by PostgREST, followed by live membership/session authorization.
+verify_jwt = false
+
+[functions.notification-worker]
+# Private scheduled worker uses its own secret and remains disabled until configured.
+verify_jwt = false
+
+[functions.export-report]
+# Each request checks current admin access through PostgREST.
+verify_jwt = false

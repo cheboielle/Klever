@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Klever Assets",
+    "slug": "klever-nz",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "kleverassets",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Unlock your Klever Assets workspace."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Use the camera to record service evidence.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Klever Assets to choose task and profile photos.",
+          "cameraPermission": "Allow Klever Assets to take task and profile photos.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-notifications"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a33d4b36-8e52-4f3f-9de9-b960fac88b3b"
+      }
+    }
+  }
+}
