@@ -748,6 +748,44 @@ describe('business settings and recorded currency',()=>{
  });
 });
 
+describe('current counter correction',()=>{
+ let machine:string;const first=id(980),second=id(981),capture='2026-09-09T01:00:00Z';
+ it('corrects a mistaken setup without fabricating an earlier reading',async()=>{
+  await asUser(ownerB,async()=>{
+   machine=await value("select public.save_asset('Correction setup',$1,'',5000,null,'km')",[typeB]);
+   expect(await value("select public.correct_asset_reading($1,$2,4500,0,$3,'Setup typo',false)",[first,machine,capture])).toMatchObject({status:'confirmation_required'});
+   expect(await value("select public.correct_asset_reading($1,$2,4500,0,$3,'Setup typo',true)",[first,machine,capture])).toMatchObject({status:'accepted',revision:1});
+   const row=(await db.query('select * from public.hour_logs where id=$1',[first])).rows[0] as any;expect(row.correction_of).toBeNull();expect(row.correction_of_setup).toBeTruthy();expect(Number(row.delta)).toBe(-500);
+   expect(await value("select (details->>'initial_hours')::numeric from public.asset_history where id=$1",[row.correction_of_setup])).toBe('5000');
+   expect((await value("select public.export_data('logs',$1)",[machine])).rows[0]).toMatchObject({correction_of_setup:row.correction_of_setup,reading:4500,unit:'km'});
+  });
+ });
+ it('links later corrections, protects a newer counter and preserves retry identity',async()=>{
+  await asUser(ownerB,async()=>{
+   expect(await value("select public.correct_asset_reading($1,$2,4600,0,$3,'Later correction',true)",[second,machine,capture])).toMatchObject({status:'conflict'});
+   expect(await value("select public.correct_asset_reading($1,$2,4600,1,$3,'Later correction',true)",[second,machine,capture])).toMatchObject({status:'accepted',revision:2});
+   expect(await value('select correction_of from public.hour_logs where id=$1',[second])).toBe(first);
+   expect(await value("select public.correct_asset_reading($1,$2,4500,0,$3,'Setup typo',true)",[first,machine,capture])).toMatchObject({duplicate:true});
+   expect(Number(await value('select current_hours from public.assets where id=$1',[machine]))).toBe(4600);
+   expect(await value('select count(*) from public.hour_logs where asset_id=$1',[machine])).toBe(2);
+  });
+ });
+ it('denies technicians, another business and read-only correction requests',async()=>{
+  await asUser(techB,async()=>{await expect(value("select public.correct_asset_reading($1,$2,1,2,$3,'Not allowed',true)",[id(982),machine,capture])).rejects.toThrow(/Admin/);});
+  await asUser(ownerA,async()=>{await expect(value("select public.correct_asset_reading($1,$2,1,2,$3,'Not allowed',true)",[id(982),machine,capture])).rejects.toThrow(/unavailable/);});
+  await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenantB]);
+  try{await asUser(ownerB,async()=>{await expect(value("select public.correct_asset_reading($1,$2,1,2,$3,'Not allowed',true)",[id(982),machine,capture])).rejects.toThrow(/read-only/);});}finally{await db.query("update public.tenants set write_until=now()+interval '30 days' where id=$1",[tenantB]);}
+ });
+ it('links to the new-unit setup when correcting immediately after a unit change',async()=>{
+  await asUser(ownerB,async()=>{
+   await value("select public.edit_asset($1,'Correction setup',$2,'','hours',100,2,'Wrong unit',true)",[machine,typeB]);
+   expect(await value("select public.correct_asset_reading($1,$2,90,3,$3,'Correct hour baseline',true)",[id(983),machine,capture])).toMatchObject({status:'accepted'});
+   const row=(await db.query('select * from public.hour_logs where id=$1',[id(983)])).rows[0] as any;expect(row.meter_unit).toBe('hours');expect(row.correction_of).toBeNull();
+   expect(await value('select kind from public.asset_history where id=$1',[row.correction_of_setup])).toBe('meter_unit_correction');
+  });
+ });
+});
+
 describe('live access changes',()=>{
   it('seat limit is enforced on provisioning accepted staff',async()=>{
     const extra=id(7);await db.query('insert into auth.users values($1)',[extra]);

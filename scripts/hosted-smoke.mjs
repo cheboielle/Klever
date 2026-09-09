@@ -139,6 +139,13 @@ try{
   assert.equal((await rpc('list_compliance',{p_asset:assetA},tech.access_token))[0].due_date,'2028-01-01');
   assert.equal((await request('/rest/v1/rpc/list_compliance',{method:'POST',body:{p_asset:assetA},token:b.access_token,allowError:true})).ok,false);
   pass('Compliance renewals update the shared asset while preserving tenant isolation');
+  const counter=(await request('/rest/v1/assets?id=eq.'+unassignedAsset+'&select=current_hours,meter_revision',{token:a.access_token})).data[0];
+  const correctionId=randomUUID(),correctionArgs={p_id:correctionId,p_asset:unassignedAsset,p_value:Number(counter.current_hours)+2,p_expected_revision:counter.meter_revision,p_capture_time:new Date().toISOString(),p_reason:'Synthetic starting-reading correction',p_confirmed:true};
+  assert.equal((await rpc('correct_asset_reading',correctionArgs,a.access_token)).status,'accepted');
+  assert.equal((await rpc('correct_asset_reading',correctionArgs,a.access_token)).duplicate,true);
+  assert((await rpc('export_data',{p_kind:'logs',p_asset:unassignedAsset},a.access_token)).rows.find(row=>row.id===correctionId).correction_of_setup);
+  assert.equal((await request('/rest/v1/rpc/correct_asset_reading',{method:'POST',body:correctionArgs,token:tech.access_token,allowError:true})).ok,false);
+  pass('Current reading correction preserves setup evidence, exports its link and retries once');
   const businessSettings=await rpc('business_settings',{},a.access_token);
   const settingsArgs={p_name:businessSettings.name,p_timezone:businessSettings.timezone,p_lock:false,p_currency:'AUD',p_revision:businessSettings.revision};
   assert.equal(await rpc('save_business_settings',settingsArgs,a.access_token),true);
