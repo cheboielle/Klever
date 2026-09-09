@@ -4,6 +4,7 @@ const job:DeliveryJob={id:'event-1',lease_id:'lease',channel:'email',event_type:
 const config={resendKey:'test-only',from:'fixture@example.invalid'};
 const response=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status});
 describe('notification delivery with simulated providers',()=>{
+ it('starts no provider request after the worker deadline',async()=>{const send=vi.fn();expect((await deliver(job,config,send,Date.now()-1)).status).toBe('pending');expect(send).not.toHaveBeenCalled();});
  it('reuses the email key after a lost acknowledgement and stops after acceptance',async()=>{
   const send=vi.fn().mockRejectedValueOnce(Error('lost reply')).mockResolvedValueOnce(response({id:'email-1'}));
   const first=await deliver(job,config,send);expect(first.status).toBe('pending');

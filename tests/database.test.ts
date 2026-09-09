@@ -663,6 +663,18 @@ describe('server reminders',()=>{
 });
 
 describe('notification worker authorization and leases',()=>{
+ it('prioritizes urgent delivery and skips cancelled candidates without wasting the requested slot',async()=>{
+  await db.exec('begin');try{
+   await db.exec('delete from public.notification_outbox');
+   for(const [n,event,recipient,age] of [[970,'hour_log',ownerA,'2 hours'],[971,'urgent_issue',techA,'1 hour'],[972,'urgent_issue',ownerA,'0 hours']] as const){
+    await db.query("insert into public.notification_outbox(id,tenant_id,source_id,event_type,recipient_id,channel,payload,created_at) values($1,$2,$1,$3,$4,'push','{}',now()-$5::interval)",[id(n),tenantA,event,recipient,age]);
+   }
+   const claimed=await value('select public.claim_notifications(1)');expect(claimed).toHaveLength(1);expect(claimed[0].id).toBe(id(972));
+   expect(await value('select status from public.notification_outbox where id=$1',[id(971)])).toBe('cancelled');
+   expect((await value('select public.claim_notifications(1)'))[0].id).toBe(id(970));
+  }finally{await db.exec('rollback');}
+ });
+
  it('lets a phone withdraw its own registration while protecting another user and read-only data',async()=>{
   await asUser(ownerA,()=>value("select public.register_device_token($1,'ExpoPushToken[owner-test]','ios')",[id(859)]));
   await asUser(techA,()=>value('select public.unregister_device_token($1)',[id(859)]));
