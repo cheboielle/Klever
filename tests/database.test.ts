@@ -787,6 +787,21 @@ describe('current counter correction',()=>{
 });
 
 describe('live access changes',()=>{
+  it('ordinary admins cannot promote staff or transfer ownership',async()=>{
+    await asUser(adminA,async()=>{
+      await expect(value("select public.manage_staff($1,'promote')",[techA])).rejects.toThrow(/Owner access/);
+      await expect(value("select public.manage_staff($1,'transfer')",[techA])).rejects.toThrow(/Owner access/);
+      await expect(value("select public.manage_staff($1,'deactivate')",[ownerA])).rejects.toThrow(/Transfer ownership/);
+    });
+  });
+  it('reactivation requires an available seat and restores login without losing assignments',async()=>{
+    await asUser(ownerA,()=>value("select public.manage_staff($1,'deactivate')",[techA]));
+    await db.query('update public.tenants set seat_limit=2 where id=$1',[tenantA]);
+    try{await asUser(ownerA,async()=>{await expect(value("select public.manage_staff($1,'activate')",[techA])).rejects.toThrow(/limit/);});}
+    finally{await db.query('update public.tenants set seat_limit=3 where id=$1',[tenantA]);await asUser(ownerA,()=>value("select public.manage_staff($1,'activate')",[techA]));await db.query('insert into auth.sessions values($1,$2)',[session(techA),techA]);}
+    await asUser(techA,async()=>{expect(await value('select public.access_status()')).toMatchObject({allowed:true});expect((await db.query('select * from public.assets')).rows).toHaveLength(1);});
+  });
+
   it('seat limit is enforced on provisioning accepted staff',async()=>{
     const extra=id(7);await db.query('insert into auth.users values($1)',[extra]);
     await expect(value("select public.provision_staff($1,$2,'Extra staff')",[tenantA,extra])).rejects.toThrow(/limit/);
@@ -810,6 +825,7 @@ describe('live access changes',()=>{
       expect(await value('select public.access_status()')).toMatchObject({allowed:true,can_write:false});
       expect((await db.query('select * from public.assets')).rows).toHaveLength(2);
       await expect(value("select public.save_asset_type('Denied')")).rejects.toThrow(/read-only/);
+      await expect(value("select public.manage_staff($1,'activate')",[techA])).rejects.toThrow(/read-only/);
     });
     await db.query("update public.tenants set write_until=now()+interval '30 days' where id=$1",[tenantA]);
   });

@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Alert,AppState,KeyboardAvoidingView,Modal,Platform,Pressable,RefreshControl,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
+import {ActivityIndicator,AppState,KeyboardAvoidingView,Modal,Platform,Pressable,RefreshControl,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {StatusBar} from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Crypto from 'expo-crypto';
@@ -14,6 +14,7 @@ import {AssetCare} from './src/AssetCare';
 import {activateOffline,currentOffline,clearOffline,networkFailure,readCache,saveCache,subscribeOffline} from './src/offlineStore';
 import {offlineEntryAllowed} from '../../packages/domain/src/offline';
 import {flushQueue,queueEntry,subscribeSynced} from './src/offlineSync';
+import {TeamAccessControls} from './src/TeamAccessControls';
 import {ReadingCorrection} from './src/ReadingCorrection';
 import {PendingSync} from './src/PendingSync';
 import {notificationTarget} from './src/notificationTarget';
@@ -42,7 +43,7 @@ function Field({label,value,onChangeText,secure=false,numeric=false}:{label:stri
 function Notice({text}:{text:string}){return <View accessibilityLiveRegion="polite" style={s.notice}><Text style={s.noticeText}>{text}</Text></View>;}
 
 export default function App(){
-  const [session,setSession]=useState<Session|null>(null),[access,setAccess]=useState<Access|null>(null);
+  const [session,setSession]=useState<Session|null>(null),[access,setAccess]=useState<Access|null>(null),[ownerId,setOwnerId]=useState<string|null>(null);
   const [boot,setBoot]=useState(true),[loading,setLoading]=useState(false),[error,setError]=useState('');
   const [assets,setAssets]=useState<Asset[]>([]),[members,setMembers]=useState<Member[]>([]),[types,setTypes]=useState<AssetType[]>([]);
   const [page,setPage]=useState<'assets'|'team'|'tasks'>('assets'),[selected,setSelected]=useState<Asset|null>(null);
@@ -64,7 +65,7 @@ export default function App(){
   const captureWritable=Boolean(!locked&&offlineState&&offlineEntryAllowed(offlineState));
 
   const clearData=useCallback(()=>{
-    generation.current++;detailGeneration.current++;setAccess(null);setAssets([]);setMembers([]);setTypes([]);setSelected(null);setLogs([]);setAssignmentIds([]);setShowAdd(false);setEditingAsset(null);setEditingMember(null);setMeterChanges([]);setHours('');setReason('');setPage('assets');setOnline(false);pendingReading.current=null;
+    generation.current++;detailGeneration.current++;setAccess(null);setOwnerId(null);setAssets([]);setMembers([]);setTypes([]);setSelected(null);setLogs([]);setAssignmentIds([]);setShowAdd(false);setEditingAsset(null);setEditingMember(null);setMeterChanges([]);setHours('');setReason('');setPage('assets');setOnline(false);pendingReading.current=null;
   },[]);
   const signOut=useCallback(async()=>{
     try{await clearOffline();}finally{clearData();setSession(null);setPassword('');await supabase?.auth.signOut({scope:'local'});}
@@ -88,14 +89,15 @@ export default function App(){
         supabase.from('assets').select('id,asset_type_id,name,serial,status,current_hours,meter_revision,archived,meter_unit').eq('archived',false).order('name'),
         supabase.from('asset_types').select('id,name').order('name'),
         canAdmin?supabase.from('memberships').select('user_id,name,phone,role,is_active').order('name'):Promise.resolve({data:[],error:null}),
+        canAdmin?supabase.from('tenants').select('owner_user_id').single():Promise.resolve({data:null,error:null}),
       ]);
       for(const result of results)if(result.error)throw new Error(result.error.message);
       if(ticket!==generation.current)return;
       const previous=readCache<{assets:Asset[]}>('workspace');
       if(previous&&JSON.stringify(previous.assets.map(x=>x.id).sort())!==JSON.stringify((results[0].data??[]).map(x=>x.id).sort()))await currentOffline()?.change(s=>{s.cache={};});
       if(ticket!==generation.current)return;
-      await saveCache('workspace',{access:a,assets:results[0].data,types:results[1].data,members:results[2].data});
-      setAccess(a);setAssets(results[0].data as Asset[]);setTypes(results[1].data as AssetType[]);setMembers(results[2].data as Member[]);setOnline(true);setError('');
+      await saveCache('workspace',{access:a,assets:results[0].data,types:results[1].data,members:results[2].data,ownerId:results[3].data?.owner_user_id??null});
+      setAccess(a);setAssets(results[0].data as Asset[]);setTypes(results[1].data as AssetType[]);setMembers(results[2].data as Member[]);setOwnerId(results[3].data?.owner_user_id??null);setOnline(true);setError('');
       void Promise.allSettled([rpc('list_tasks',{p_asset:null,p_archived:false}),...(results[0].data??[]).flatMap(asset=>[rpc('list_asset_services',{p_asset:asset.id}),rpc('list_tasks',{p_asset:asset.id,p_archived:false}),rpc('list_asset_issues',{p_asset:asset.id}),rpc('list_compliance',{p_asset:asset.id})])]);
       if(unlock&&a.app_lock&&Platform.OS!=='web'){
         setLocked(true);
@@ -103,8 +105,8 @@ export default function App(){
         if(ticket===generation.current)setLocked(!result.success);
       }else if(!a.app_lock||Platform.OS==='web')setLocked(false);
     }catch(e){if(ticket===generation.current){
-      const cached=networkFailure(e)?readCache<{access:Access;assets:Asset[];members:Member[];types:AssetType[]}>('workspace'):undefined;
-      if(cached){setAccess(currentOffline()?.snapshot().access??cached.access);setAssets(cached.assets);setMembers(cached.members);setTypes(cached.types);setError('Offline — showing saved data. New entries stay on this device until they sync.');
+      const cached=networkFailure(e)?readCache<{access:Access;assets:Asset[];members:Member[];types:AssetType[];ownerId?:string|null}>('workspace'):undefined;
+      if(cached){setAccess(currentOffline()?.snapshot().access??cached.access);setAssets(cached.assets);setMembers(cached.members);setTypes(cached.types);setOwnerId(cached.ownerId??null);setError('Offline — showing saved data. New entries stay on this device until they sync.');
        if(unlock&&cached.access.app_lock&&Platform.OS!=='web'){setLocked(true);const result=await LocalAuthentication.authenticateAsync({promptMessage:'Unlock Klever Assets',disableDeviceFallback:false});if(ticket===generation.current)setLocked(!result.success);}
       }else setError('Unable to refresh your workspace. Check your connection and retry.');
     }}
@@ -201,14 +203,7 @@ export default function App(){
       setShowAdd(false);setNewName('');setSerial('');setInitialHours('0');setMeterUnit('hours');await refresh();
     });
   }
-  function staffAction(member:Member,action:string){
-    const deactivate=action==='deactivate';
-    Alert.alert(deactivate?'Deactivate staff member?':'Sign out this staff member?',deactivate?
-      `${member.name} will lose access. Unsynced entries on their phone will be cleared when it reconnects. Their history is kept. Review their assigned assets afterward.`:
-      `${member.name} will be signed out on their next online request. They can sign in again while active.`,[
-      {text:'Cancel',style:'cancel'},{text:deactivate?'Deactivate':'Sign out',style:'destructive',onPress:()=>void run(async()=>{await rpc('manage_staff',{p_user:member.user_id,p_action:action});await refresh();})},
-    ]);
-  }
+
 
   if(boot)return <View style={s.center}><ActivityIndicator color={colors.green}/><Text style={s.muted}>Opening your workspace…</Text></View>;
   if(!configured)return <View style={s.center}><Text style={s.title}>Connection needed</Text><Text style={s.muted}>The app’s Supabase connection must be configured before signing in.</Text></View>;
@@ -241,8 +236,8 @@ export default function App(){
         </Pressable>):<View style={s.card}><Text style={s.heading}>{search?'No matching assets':'A fresh start'}</Text><Text style={s.muted}>{admin?'Add your first machine or vehicle to get started.':'Your administrator will assign your equipment here.'}</Text></View>}
       </>:page==='tasks'?<TaskPanel assets={assets} admin={Boolean(admin)} writable={writable} captureWritable={captureWritable}/>:<>
         <View style={s.sectionRow}><Text style={s.heading}>Staff</Text><Text style={s.small}>{members.filter(m=>m.is_active).length} active</Text></View>
-        {members.map(m=><View key={m.user_id} style={s.card}><View style={s.sectionRow}><Text style={s.assetName}>{m.name}</Text><Text style={s.badge}>{m.is_active?'Active':'Inactive'}</Text></View><Text style={s.small}>{m.user_id===access.user_id?access.role:m.role}</Text><Text style={s.muted}>{m.phone||'No phone number recorded'}</Text><ProfilePhoto kind="member" target={m.user_id} editable writable={writable}/><Button title="Edit details" secondary disabled={!writable||busy} onPress={()=>{setEditingMember(m);setMemberName(m.name);setMemberPhone(m.phone);setError('');}}/>
-          {m.user_id!==access.user_id&&m.is_active?<View style={s.row}><Button title="Remote sign out" onPress={()=>staffAction(m,'sign_out')} secondary disabled={busy||!online}/><Button title="Deactivate" onPress={()=>staffAction(m,'deactivate')} secondary disabled={busy||!online}/></View>:null}
+        {members.map(m=><View key={m.user_id} style={s.card}><View style={s.sectionRow}><Text style={s.assetName}>{m.name}</Text><Text style={s.badge}>{m.is_active?'Active':'Inactive'}</Text></View><Text style={s.small}>{m.user_id===ownerId?'owner':m.user_id===access.user_id?access.role:m.role}</Text><Text style={s.muted}>{m.phone||'No phone number recorded'}</Text><ProfilePhoto kind="member" target={m.user_id} editable writable={writable}/><Button title="Edit details" secondary disabled={!writable||busy} onPress={()=>{setEditingMember(m);setMemberName(m.name);setMemberPhone(m.phone);setError('');}}/>
+          <TeamAccessControls member={m} ownerId={ownerId} viewerId={session.user.id} viewerIsOwner={access.role==='owner'} writable={writable} online={online} assets={assets} onSaved={()=>refresh(false)} onOpenAsset={openAsset}/>
         </View>)}
       </>}
     </ScrollView>
