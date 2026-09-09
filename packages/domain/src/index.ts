@@ -13,6 +13,7 @@ export interface Access {
   can_write?: boolean;
   access_ends_at?: string | null;
   app_lock?: boolean;
+  reporting_currency?: string;
 }
 export interface Asset {
   id: string; asset_type_id: string; name: string; serial: string; status: AssetStatus;

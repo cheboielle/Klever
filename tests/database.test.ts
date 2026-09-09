@@ -697,6 +697,45 @@ describe('notification worker authorization and leases',()=>{
  });
 });
 
+describe('business settings and recorded currency',()=>{
+ it('restricts edits to current writable admins and rejects stale settings',async()=>{
+  const original=await asUser(ownerA,()=>value('select public.business_settings()'));
+  await asUser(techA,async()=>{
+   await expect(value('select public.business_settings()')).rejects.toThrow(/Admin/);
+   await expect(value("select public.save_business_settings('Forged','Pacific/Auckland',true,'AUD',1)")).rejects.toThrow(/Admin/);
+  });
+  await db.exec('set role anon');try{await expect(value('select public.business_settings()')).rejects.toThrow(/permission denied/);}finally{await db.exec('reset role');}
+  await asUser(ownerA,async()=>{
+   expect(await value("select public.save_business_settings('Business A','Pacific/Auckland',true,'AUD',$1)",[original.revision])).toBe(true);
+   expect(await value("select public.save_business_settings('Stale','Pacific/Auckland',false,'NZD',$1)",[original.revision])).toBe(false);
+   expect(await value('select public.access_status()')).toMatchObject({app_lock:true,reporting_currency:'AUD'});
+  });
+  expect(await asUser(ownerB,()=>value('select public.business_settings()'))).toMatchObject({name:'Business B',currency:'NZD'});
+  await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenantA]);
+  try{await asUser(ownerA,async()=>{
+   const current=await value('select public.business_settings()');expect(current.currency).toBe('AUD');
+   await expect(value("select public.save_business_settings('Business A','Pacific/Auckland',false,'NZD',$1)",[current.revision])).rejects.toThrow(/read-only/);
+  });}finally{await db.query("update public.tenants set write_until=now()+interval '30 days',app_lock=false,reporting_currency='NZD' where id=$1",[tenantA]);}
+ });
+ it('keeps earlier costs and delayed submissions in their recorded currency',async()=>{
+  await asUser(ownerB,async()=>{
+   const before=await value("select public.export_data('services')");expect(before.rows.find((r:any)=>r.id===id(501))).toMatchObject({currency:'NZD',cost:75.5});
+   const settings=await value('select public.business_settings()');
+   expect(await value("select public.save_business_settings('Business B','Pacific/Auckland',false,'AUD',$1)",[settings.revision])).toBe(true);
+   const config={name:'Currency service',instructions:'Synthetic instructions',mode:'meter',meter_unit:'hours',interval_reading:100,interval_days:null};
+   const service=(await value("select public.save_service_schedule($1,$2,'asset',0,null,'last_service')",[assetB,JSON.stringify(config)])).id;
+   const prepared=await value('select public.prepare_service_photo($1,$2,$3,1,now(),$4,1)',[id(990),assetB,service,JSON.stringify(config)]);
+   await db.query(`insert into storage.objects(bucket_id,name,metadata) values('evidence',$1,'{"size":256,"mimetype":"image/jpeg"}')`,[prepared.path]);
+   await value("select public.complete_service($1,12.50,'Delayed offline cost','NZD')",[id(990)]);
+   const history=await value('select public.list_service_history($1,$2)',[assetB,service]);expect(history[0]).toMatchObject({currency:'NZD',cost:12.5});
+   const after=await value("select public.export_data('services')");expect(after.rows.find((r:any)=>r.id===id(501))).toMatchObject({currency:'NZD',cost:75.5});
+   // A retry cannot rewrite the saved cost or its currency.
+   await value("select public.complete_service($1,999,'Retry','AUD')",[id(990)]);
+   expect((await value('select public.list_service_history($1,$2)',[assetB,service]))[0]).toMatchObject({currency:'NZD',cost:12.5});
+  });
+ });
+});
+
 describe('live access changes',()=>{
   it('seat limit is enforced on provisioning accepted staff',async()=>{
     const extra=id(7);await db.query('insert into auth.users values($1)',[extra]);
