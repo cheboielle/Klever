@@ -94,12 +94,12 @@ Expo BackgroundTask registers one sync job after login, requesting a 15-minute m
 
 Migration 015 allows users to withdraw their own phone registration, including while read-only. Existing notification permission is checked on foreground, and changed native tokens are re-registered. Explicit Enable phone alerts remains the only permission prompt.
 
-For the temporary Expo build CLI on this Windows runtime, use pnpm --config.node-linker=hoisted --package=eas-cli@23.2.0 --package=ejs@3.1.10 dlx eas whoami. The account currently needs sign-in; never put an Expo password/token in source or chat.
+For the temporary Expo build CLI on this Windows runtime, use pnpm --config.node-linker=hoisted --package=eas-cli@23.2.0 --package=ejs@3.1.10 dlx eas whoami. The development account is linked and internal Android builds use the managed signing key; never put an Expo password/token in source or chat.
 
 
 ## Current acceptance and recovery status
 
-BUILD_STATUS.md is the current milestone and validation record. Database and photo backup tools and a verified local restore rehearsal are documented in scripts/RECOVERY.md. Daily offsite backups and a separate hosted restore remain unverified; local copies are not that coverage. Native device acceptance, Expo sign-in, notification sender setup and the legacy export/media are still needed before Stage A proof. Keep notifications inactive until the documented setup and authorized delivery checks are complete.
+BUILD_STATUS.md is the current milestone and validation record. Database and photo backup tools and a verified local restore rehearsal are documented in scripts/RECOVERY.md. Daily offsite backups and a separate hosted restore remain unverified; local copies are not that coverage. Native device acceptance, notification sender setup and the legacy export/media are still needed before Stage A proof. Keep notifications inactive until the documented setup and authorized delivery checks are complete.
 
 
 ## Staff invitations (scoped Stage A onboarding)
@@ -111,3 +111,12 @@ Deploy `staff-invitation` with the existing CLI. Delivery stays disabled unless 
 Run `node scripts/hosted-invitation-smoke.mjs` against the explicit development project with credentials supplied only in process memory. It intercepts every Resend call while using actual Auth/database requests and verifies that the deployed endpoint is disabled. It writes exact non-secret cleanup IDs under `tmp/invitation-smoke-*`. Execute cleanup SQL with `supabase db query --linked --file` (including default notification rules), then delete the listed disposable Auth IDs and verify zero remaining fixtures. Never run this synthetic transport as a deployed provider.
 
 Provider references: [Supabase Auth link generation](https://supabase.com/docs/reference/javascript/auth-admin-generatelink), [email-code verification](https://supabase.com/docs/guides/auth/auth-email-passwordless), [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys). Phone onboarding and real email delivery still need acceptance; bundle and HTTP tests are separate evidence.
+
+
+## Isolated browser acceptance
+
+`scripts/browser-invitation-smoke.mjs` exercises the actual admin invitation/cancellation, recipient code/password setup, accepted profile, deactivation and fresh-login denial in isolated Chrome contexts. It creates only disposable development accounts/businesses, keeps passwords/codes in memory, sends no email and writes exact cleanup manifests. Failure screenshots mask inputs; action logs are suppressed because they can include entered credentials. Never reuse a real browser profile for this test.
+
+The local test runtime is pinned to Playwright 1.63.0 in ignored `tmp/browser-qa`: create its private package.json, then run `pnpm --dir tmp/browser-qa --ignore-workspace add playwright@1.63.0`. The script uses installed Chrome and expects the preview at 127.0.0.1:8085. Supply development credentials only in process memory, as with hosted tests; after the run, execute its exact cleanup SQL file, delete listed Auth IDs and verify cleanup.
+
+For browser visuals, export separately with `node node_modules/expo/bin/cli export --platform web --output-dir ../../tmp/acceptance-web-export` from apps/mobile. Then run `python scripts/serve-web-preview.py --directory tmp/acceptance-web-export --port 8085` from the repository root, using the configured Python executable on this Windows host. This loopback-only server normalizes extended Windows paths so nested pnpm font assets load. A combined `--platform all` export remains useful for bundle validation but can omit the web-specific font copy; do not use it for visual acceptance. Standard Python http.server also returned 404 for the 277-character font path on this host. The corrected server and web-only export were verified with HTTP 200, a loaded FontFace and rendered icons.
