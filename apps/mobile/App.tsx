@@ -77,7 +77,7 @@ function Workspace(){
   const writable=Boolean(access?.can_write&&online);
   const assetWritable=writable&&!selected?.archived;
   const activeAssets=assets.filter(asset=>!asset.archived);
-  const [,offlineRender]=useState(0);useEffect(()=>subscribeOffline(()=>offlineRender(v=>v+1)),[]);
+  const [,offlineRender]=useState(0);useEffect(()=>subscribeOffline(()=>{offlineRender(v=>v+1);const latest=currentOffline()?.snapshot().access;if(latest?.allowed&&latest.user_id===session?.user.id)setAccess(latest);}),[session?.user.id]);
   const offlineState=currentOffline()?.snapshot();
   const pendingAssets=assets.map(asset=>{const pending=!asset.archived?offlineState?.commands.filter(c=>c.kind==='reading'&&c.assetId===asset.id&&c.meterUnit===asset.meter_unit&&c.state==='pending').at(-1):undefined;return pending?{...asset,current_hours:Number(pending.args.p_value)}:asset;});
   const captureWritable=Boolean(offlineState&&offlineEntryAllowed(offlineState));

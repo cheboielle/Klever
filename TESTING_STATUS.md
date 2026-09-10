@@ -1,43 +1,47 @@
 # Klever testing record
 
-Updated 10 September 2026. This is a coverage record, not a claim that the app is release-ready. Keep it current as screen and phone testing proceeds.
+Updated 11 September 2026. This records proven coverage; Stage A and release acceptance remain incomplete. Historical checkpoints below preserve earlier results.
 
 ## Latest results
 
-- 187 automated checks passed across 14 files, including 134 database/permission checks.
-- The 126 database checks passed again after extending the hosted test script.
-- 32 checks against the actual development Auth, database, photo storage and export endpoints passed with disposable businesses/users/photos. No customer notifications sent. Cleanup independently verified zero remaining test businesses, users or photos.
-- Android version 0.1.0 (4), build `59ce0345-3a46-4b8c-b59d-b83290dfccdc`, verified FINISHED. This confirms packaging, not phone acceptance.
-- Owner signed in and the browser walkthrough below passed on the build-4 export at http://127.0.0.1:8083/. The sync-feedback fix is separately unit-tested and bundled; it has not yet been retested in a signed-in UI. Browser sessions are intentionally memory-only.
+- 201 automated checks across 16 files passed, including 139 database/permission checks; mobile TypeScript and web/Android/iOS bundles passed.
+- Latest hosted foundation smoke: 33 checks. Focused invitation delivery/Auth smoke: 10 checks, with all email transport intercepted.
+- 26 isolated browser acceptance scenarios passed across six runners: onboarding (5), service/photo/export (4), company tasks/reconnect (4), asset/staff/issues/compliance (5), queued reading/access changes (4), required evidence/read-only (4). The access runner was repeated after the relevant access-display fix and still passed; repeated runs are not counted as new coverage.
+- Disposable Auth users, businesses and uploaded photos were cleaned after testing and verified absent. Real owner records, archived QA evidence and the signed-in 8083 browser were preserved.
+- Android build 6 is FINISHED. Build 7 (6349d8e2-8eca-4334-8632-2bb51889b114) includes header containment and task/issue sync feedback; see latest BUILD_STATUS.md for its provider status. The subsequent read-only display fix is tested in source/8085 preview and is not in build 7.
+- Browser credentials are memory-only. Browser gallery/simulated-camera and network-disconnection tests do not prove physical-phone behaviour.
 
 ## Workflow coverage
 
 | Workflow | Verified so far | Remaining acceptance |
 | --- | --- | --- |
-| Sign-in and staff access | Real sign-in, remote sign-out, token invalidation, fresh sign-in after revocation, deactivation, tenant/assignment restrictions | Browser navigation in each role; phone restart and foreground without extra unlock |
-| Assets and meters | Create/edit, hours/km correction with retained history, assignments, stale readings, retry, archive/restore, types | Walk through asset forms, dashboard filters and archive controls |
-| Staff details and pictures | Name/phone/contact email/title saves; sign-in email preserved; private photo upload/replacement/removal rules | Edit form, keyboard visibility, photo selection/save on phone |
-| Service schedules | Baseline arithmetic, calendar/both modes, starter templates, service completion, missing-photo denial, corrections, retained history | Calendar selection, camera sign-off, history discovery on screen |
-| Tasks | Shared completion and individual technician progress, checklist/photo/notes requirements, void/reopen, retry and history | Task setup choices and completion flows on screen |
-| Issues and compliance | Issue/resolution records, reminder queue creation, compliance renewal and access protection | Form controls, due-date calendar, discoverability |
-| Settings and dates/times | Protected settings, stale-save handling, retired lock, valid date-only arithmetic, half-hour choices | Hamburger menu, calendar month/year/day choices and saved reminder time |
-| Exports | Real hosted PDF/photo response, CSV/API permissions, read-only access; automated formatting/data tests | Download/share controls on phone; review generated output when format changes |
-| Offline work | Queue persistence, cache isolation, retry/dependency/conflict rules in automated tests | Actual airplane mode, app restart, reconnect and exactly-once sync on phone |
-| Notifications | Scheduling, deduplication, recipient/access rules and worker tests; Firebase/Expo credentials configured | Phone token registration and authorized test delivery; sender/dispatcher configuration remains incomplete |
+| Sign-in/invitations/access | Real Auth code/password join, admin invitation create/cancel, contact profile, deactivation/sign-out; tenant and assignment checks; queued access denial | Real invitation delivery and native onboarding; phone restart/foreground |
+| Assets/meters | Actual create/edit, hours/km correction, serial changes, filters, archive/restore; blocked stale readings, safe review and unrelated queue progress | Phone forms and everyday use |
+| Staff and profile photos | Actual gallery upload/replacement/removal where tested, name/phone/email/title edits, private storage checks | Physical gallery/camera selection, keyboard and reopening |
+| Services | Meter/calendar/both baselines, starter and correction rules; actual simulated-camera sign-off, private costs, photo viewing, void and PDF/CSV output | Physical camera capture and native sharing |
+| Tasks | Actual shared/individual progress, checklist/notes/photo validation and completed evidence; monthly date and void; short browser reconnect | Phone photo entry and persistence through app restart |
+| Issues/compliance | Automatic synced issue display, admin resolution, technician limits, calendar creation/renewal/archive/restore | Phone usability and actual reminders |
+| Settings/dates/times | Menu, calendar year/month/day selection, half-hour choice and protected saves | Phone keyboard/calendar/time controls |
+| Exports/read-only | Actual downloaded CSV/PDF with embedded service images and corrections; admin export during read-only; queued work retained and synced once after restoration | Native download/share; production billing still gated |
+| Offline | Actual browser stale/lower reading block, review, assignment denial, deactivation wipe, unrelated queue progress, task reconnect; underlying persistence tests | Airplane mode plus app restart/media recovery on actual phones |
+| Notifications | Server scheduling/deduplication/recipient/worker tests, Firebase/Expo credential setup | Verified sender/worker activation and authorized phone delivery/tap |
 
-## Short phone checklist after browser walkthrough
+## Short phone checklist
 
-1. Pick and save an asset/staff photo; cancel once and retry. Confirm the saved photo remains after reopening.
-2. Edit a field near the bottom of a form and select a date/time. Confirm the keyboard does not hide the edit and the selected value saves.
-3. Pull to refresh, switch apps and return, then close/reopen Klever. Confirm there is no extra app-unlock prompt.
-4. Record a reading and a photo-backed task/service offline, close/reopen, reconnect, and confirm one saved record with its photo. Use designated test data.
-5. After test delivery is configured, receive and tap an authorized test notification; verify the right permitted record opens.
+Install the latest FINISHED internal APK as an update; keep existing app data and pending work. Use designated test records.
 
-Record actual outcomes per device. Browser results do not substitute for camera, operating-system lifecycle, notification delivery or offline phone proof.
+1. Sign in, switch apps, pull to refresh and close/reopen Klever. Confirm there is no extra unlock screen.
+2. Upload/replace an asset and staff picture, cancel once, and reopen to confirm persistence.
+3. Edit a field low in a form; select a date and reminder time. Confirm keyboard visibility and saved values.
+4. Record a reading and photo-backed task/service in airplane mode, close/reopen, reconnect and confirm one retained record/photo with clear sync status.
+5. Try invitation-code/password setup on the phone once a verified sender and intended recipient are authorized.
+6. After notification delivery is configured, receive/tap an authorized alert and confirm the permitted record opens.
+
+Record results separately for Android and iOS. No real customer messages or charges are authorized by this checklist.
 
 ## Known incomplete work
 
-Team invitation/onboarding is not built. Live notification delivery, legacy migration, offsite backup/hosted recovery proof and release gates remain recorded in BUILD_STATUS.md. The full visual redesign follows functional acceptance. Do not mark these as passed because related database tests pass.
+Native invitation onboarding is implemented and browser/hosted tested; real delivery remains disabled. Physical-device acceptance, verified sender/authorized test delivery, legacy export with original media and offsite database/photo backup plus hosted restore proof remain release gates. Full portal/public signup/Paddle/retention and the broad visual redesign are still gated. Do not treat a successful APK as release or store approval.
 
 ## Signed-in browser pass — 10 September, evening
 
@@ -96,3 +100,6 @@ Asset/staff/care browser acceptance — 11 September ~00:44: five isolated actua
 
 
 Queued reading/access browser acceptance — 11 September ~00:54: four isolated actual UI checks passed for stale reading block with unrelated queue progress; technician lower-value rejection and corrected-value resubmission exactly once; reassignment denying queued asset writing while retaining blocked feedback; deactivation clearing workspace/pending work and returning to login. Accepted values remained correct throughout. 139 isolation checks passed; no product change, so latest full suite remains 201. Final hosted cleanup verified zero test tenants/users. Physical-phone persistent queue/restart remains unverified. Android build 7 was checked once and remains IN_QUEUE.
+
+
+Required evidence/read-only acceptance — 11 September ~01:05–01:13: four isolated owner-browser checks passed: checklist/notes/photo omissions create no task completion; gallery task photo plus notes/checklist upload/sync/view; read-only access retains a queued reading and blocks writes; admin CSV remains downloadable and restoring synthetic internal entitlement syncs once. Fixed stale workspace access display after queue validation: subscriber now applies current matching-user allowed access to the screen, immediately updating read-only notice/editing controls. Backend already blocked writes correctly. All 201 tests, TypeScript and platform exports passed. Four queue/access regression scenarios also passed after this change. Exact cleanup verified zero evidence/queue-test tenants/users and final task-photo path. No billing provider or live delivery used. Read-only display fix not in build 7.

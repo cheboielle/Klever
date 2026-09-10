@@ -132,3 +132,6 @@ For browser visuals, export separately with `node node_modules/expo/bin/cli expo
 
 
 `scripts/browser-queue-smoke.mjs` checks stale offline meter conflicts, independent queue progress, technician review/correction, reassignment denial and deactivation wipe in isolated owner/technician browser contexts. It creates two disposable assets and uses browser network disconnection; it does not verify native restarts. Execute its exact tmp/browser-queue-cleanup.sql and delete listed Auth IDs, then verify zero fixtures. No images, email or real records are used.
+
+
+`scripts/browser-evidence-smoke.mjs` checks required task checklist/notes/gallery-photo validation and confirmed evidence, then temporarily expires/restores only its disposable business's internal access. It verifies retained queued work, disabled editing, read-only CSV download and exactly-once sync after restoration. It uses tmp/browser-service/evidence.png from the synthetic service-camera runner; no real billing/email or physical camera. Clean exact tmp/browser-evidence photo paths, SQL and Auth IDs, then verify absence.
