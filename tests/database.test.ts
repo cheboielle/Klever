@@ -1032,3 +1032,59 @@ describe('staff invitation acceptance',()=>{
   });
  });
 });
+
+
+describe('staff invitation delivery authorization',()=>{
+ const owner=id(1400),admin=id(1401),tech=id(1402),other=id(1403);let tenant:string;
+ beforeAll(async()=>{
+  for(const u of [owner,admin,tech,other]){await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[u,`${u}@example.invalid`]);await db.query('insert into auth.sessions values($1,$2)',[session(u),u]);}
+  tenant=await value("select public.provision_business($1,'Delivery test','Owner',now()+interval '1 day')",[owner]);
+  await value("select public.provision_business($1,'Other delivery test','Other',now()+interval '1 day')",[other]);
+  await value("select public.provision_staff($1,$2,'Admin')",[tenant,admin]);
+  await value("select public.provision_staff($1,$2,'Tech')",[tenant,tech]);
+  await asUser(owner,()=>value("select public.manage_staff($1,'promote')",[admin]));
+ });
+ const create=(key:number,actor=owner)=>asUser(actor,()=>value("select public.create_staff_invitation($1,$2,'Recipient')",[id(key),`delivery-${key}@example.invalid`]));
+ it('derives recipient and business from current admin access, never from supplied authority',async()=>{
+  await create(1410);const context=await asUser(owner,()=>value('select public.staff_invitation_delivery_context($1)',[id(1410)]));
+  expect(context).toMatchObject({email:'delivery-1410@example.invalid',business_name:'Delivery test',existing_auth:false,delivery_status:'not_sent'});
+  for(const actor of [tech,other])await asUser(actor,()=>expect(value('select public.staff_invitation_delivery_context($1)',[id(1410)])).rejects.toThrow(/Admin|unavailable/));
+ });
+ it('serializes sends and only lets the service record the matching current attempt',async()=>{
+  await create(1411);const first=await asUser(owner,()=>value('select public.claim_staff_invitation_delivery($1)',[id(1411)]));expect(first.status).toBe('claimed');
+  expect(await asUser(owner,()=>value('select public.claim_staff_invitation_delivery($1)',[id(1411)]))).toEqual({status:'wait'});
+  await asUser(owner,()=>expect(value("select public.finish_staff_invitation_delivery($1,$2,'sent')",[id(1411),first.attempt])).rejects.toThrow(/permission denied/));
+  await db.exec('set role service_role');try{
+   expect(await value("select public.finish_staff_invitation_delivery($1,$2,'sent')",[id(1411),id(1499)])).toBe(false);
+   expect(await value("select public.finish_staff_invitation_delivery($1,$2,'sent')",[id(1411),first.attempt])).toBe(true);
+   expect(await value("select public.finish_staff_invitation_delivery($1,$2,'failed')",[id(1411),first.attempt])).toBe(false);
+  }finally{await db.exec('reset role');}
+  expect(await value('select last_sent_at is not null from public.staff_invitations where id=$1',[id(1411)])).toBe(true);
+  await db.query("update public.staff_invitations set delivery_started_at=now()-interval '3 minutes' where id=$1",[id(1411)]);
+  const second=await asUser(owner,()=>value('select public.claim_staff_invitation_delivery($1)',[id(1411)]));expect(second.attempt).not.toBe(first.attempt);
+  await asUser(owner,()=>expect(value('select public.staff_invitation_delivery_context($1,$2)',[id(1411),first.attempt])).rejects.toThrow(/attempt unavailable/));
+ });
+ it('cancellation and expiry stop a claimed attempt before provider sending',async()=>{
+  await create(1412);const claim=await asUser(owner,()=>value('select public.claim_staff_invitation_delivery($1)',[id(1412)]));
+  await asUser(owner,()=>value('select public.cancel_staff_invitation($1)',[id(1412)]));
+  await asUser(owner,()=>expect(value('select public.staff_invitation_delivery_context($1,$2)',[id(1412),claim.attempt])).rejects.toThrow(/unavailable/));
+  await create(1413);await db.query("update public.staff_invitations set expires_at=now()-interval '1 second' where id=$1",[id(1413)]);
+  await asUser(owner,()=>expect(value('select public.claim_staff_invitation_delivery($1)',[id(1413)])).rejects.toThrow(/unavailable/));
+ });
+ it('allows read-only status inspection but denies sending and rechecks entitlement mid-attempt',async()=>{
+  await create(1414);const claim=await asUser(owner,()=>value('select public.claim_staff_invitation_delivery($1)',[id(1414)]));
+  await db.query("update public.tenants set write_until=now()-interval '1 second' where id=$1",[tenant]);
+  try{await asUser(owner,async()=>{
+   expect((await value('select public.staff_invitation_delivery_context($1)',[id(1414)])).id).toBe(id(1414));
+   await expect(value('select public.claim_staff_invitation_delivery($1)',[id(1414)])).rejects.toThrow(/read-only/);
+   await expect(value('select public.staff_invitation_delivery_context($1,$2)',[id(1414),claim.attempt])).rejects.toThrow(/read-only/);
+  });}finally{await db.query("update public.tenants set write_until=now()+interval '1 day' where id=$1",[tenant]);}
+ });
+ it('rechecks current session and original inviter authority',async()=>{
+  await create(1415,admin);await db.query('delete from auth.sessions where user_id=$1',[admin]);
+  await asUser(admin,()=>expect(value('select public.claim_staff_invitation_delivery($1)',[id(1415)])).rejects.toThrow(/Access denied/));
+  await db.query('insert into auth.sessions values($1,$2)',[session(admin),admin]);
+  await asUser(owner,()=>value("select public.manage_staff($1,'demote')",[admin]));
+  await asUser(owner,()=>expect(value('select public.claim_staff_invitation_delivery($1)',[id(1415)])).rejects.toThrow(/unavailable/));
+ });
+});

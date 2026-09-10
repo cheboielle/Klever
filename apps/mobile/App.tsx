@@ -25,6 +25,7 @@ import {TeamAccessControls} from './src/TeamAccessControls';
 import {TeamInvitations} from './src/TeamInvitations';
 import {JoinWorkspace} from './src/JoinWorkspace';
 import {InvitationLink} from './src/InvitationLink';
+import {InvitationCode} from './src/InvitationCode';
 import {ReadingCorrection} from './src/ReadingCorrection';
 import {PendingSync} from './src/PendingSync';
 import {notificationTarget} from './src/notificationTarget';
@@ -55,7 +56,7 @@ function Notice({text}:{text:string}){return <View accessibilityLiveRegion="poli
 export default function App(){return <SafeAreaProvider><KeyboardProvider><Workspace/><InvitationLink/></KeyboardProvider></SafeAreaProvider>;}
 function Workspace(){
   const [session,setSession]=useState<Session|null>(null),[access,setAccess]=useState<Access|null>(null),[ownerId,setOwnerId]=useState<string|null>(null);
-  const [joining,setJoining]=useState(false);
+  const [joining,setJoining]=useState(false),[invitationMode,setInvitationMode]=useState(false);
   const [boot,setBoot]=useState(true),[loading,setLoading]=useState(false),[error,setError]=useState('');
   const [assets,setAssets]=useState<Asset[]>([]),[members,setMembers]=useState<Member[]>([]),[types,setTypes]=useState<AssetType[]>([]);
   const [page,setPage]=useState<'assets'|'team'|'tasks'|'settings'>('assets'),[selected,setSelected]=useState<Asset|null>(null),[showArchived,setShowArchived]=useState(false);
@@ -82,7 +83,7 @@ function Workspace(){
   const captureWritable=Boolean(offlineState&&offlineEntryAllowed(offlineState));
 
   const clearData=useCallback(()=>{
-    joiningRef.current=false;setJoining(false);
+    joiningRef.current=false;setJoining(false);setInvitationMode(false);
     generation.current++;detailGeneration.current++;setAccess(null);setOwnerId(null);setAssets([]);setMembers([]);setTypes([]);setSelected(null);setLogs([]);setAssignmentIds([]);setShowAdd(false);setEditingAsset(null);setEditingMember(null);setMeterChanges([]);setHours('');setReason('');setPage('assets');setMenuOpen(false);setShowArchived(false);setOnline(false);pendingReading.current=null;
   },[]);
   const signOut=useCallback(async()=>{
@@ -229,10 +230,10 @@ function Workspace(){
     <FormScroll contentContainerStyle={s.login} keyboardShouldPersistTaps="handled">
       <View style={s.brand}><Text style={s.mark}>k</Text><Text style={s.brandText}>KLEVER ASSETS</Text></View>
       <View style={{gap:16,marginTop:54,marginBottom:28}}><Text style={s.eyebrow}>READY FOR THE DAY</Text><Text style={s.hero}>Keep your{ '\n'}equipment moving.</Text><Text style={s.subtitle}>Your machines, maintenance and team.{ '\n'}One place to stay on top of it.</Text></View>
-      <View style={s.card}><Text style={s.heading}>Welcome back</Text><Text style={s.muted}>Sign in to your business workspace.</Text>
+      <View style={s.card}>{invitationMode?<InvitationCode onCancel={()=>setInvitationMode(false)}/>:<><Text style={s.heading}>Welcome back</Text><Text style={s.muted}>Sign in to your business workspace.</Text>
         <Field label="Email" value={email} onChangeText={setEmail}/><Field label="Password" value={password} onChangeText={setPassword} secure/>
-        {error?<Notice text={error}/>:null}<Button title={busy?'Signing in…':'Sign in'} onPress={()=>void login()} disabled={busy||!email.trim()||!password}/>
-      </View><Text style={[s.muted,{marginTop:28,textAlign:'center'}]}>Simple maintenance. A better working day.</Text>
+        {error?<Notice text={error}/>:null}<Button title={busy?'Signing in…':'Sign in'} onPress={()=>void login()} disabled={busy||!email.trim()||!password}/><Button title="I have an invitation" secondary disabled={busy} onPress={()=>{setPassword('');setError('');setInvitationMode(true);}}/>
+      </>}</View><Text style={[s.muted,{marginTop:28,textAlign:'center'}]}>Simple maintenance. A better working day.</Text>
     </FormScroll></KeyboardAvoidingView>;
 
   if(joining)return <JoinWorkspace key={session.user.id} email={session.user.email??''} onJoined={refresh} onSignOut={signOut}/>;

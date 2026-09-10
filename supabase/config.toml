@@ -36,3 +36,7 @@ verify_jwt = false
 [functions.export-report]
 # Each request checks current admin access through PostgREST.
 verify_jwt = false
+
+[functions.staff-invitation]
+# PostgREST validates JWT and current admin access; provider sending defaults off.
+verify_jwt = false

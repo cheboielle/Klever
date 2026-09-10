@@ -100,3 +100,14 @@ For the temporary Expo build CLI on this Windows runtime, use pnpm --config.node
 ## Current acceptance and recovery status
 
 BUILD_STATUS.md is the current milestone and validation record. Database and photo backup tools and a verified local restore rehearsal are documented in scripts/RECOVERY.md. Daily offsite backups and a separate hosted restore remain unverified; local copies are not that coverage. Native device acceptance, Expo sign-in, notification sender setup and the legacy export/media are still needed before Stage A proof. Keep notifications inactive until the documented setup and authorized delivery checks are complete.
+
+
+## Staff invitations (scoped Stage A onboarding)
+
+Migrations 022–023 and the `staff-invitation` function support admin invitations and native email-code/password setup without enabling public signup. The function checks current admin/tenant access, generates Supabase Auth email proofs privately and sends through Resend. Recipients choose “I have an invitation” and enter their email and latest code; Auth verifies ownership before the database grants a technician membership. Pending invitations do not consume seats. Codes/login links/passwords are never stored in invitation rows or returned to an admin.
+
+Deploy `staff-invitation` with the existing CLI. Delivery stays disabled unless `INVITATIONS_ENABLED=true`, `RESEND_API_KEY` and verified `NOTIFICATION_FROM` are configured securely. This flag is separate from scheduled maintenance notifications. Before enabling, obtain sender verification and authorization for intended test recipients. Provider acceptance is shown as accepted for sending, not inbox delivery. An uncertain outcome prompts checking with the recipient before an explicit resend; attempts have a two-minute cooldown and unique Resend idempotency keys. Expired invitations must be recreated. No automatic retry regenerates a code after an uncertain email response.
+
+Run `node scripts/hosted-invitation-smoke.mjs` against the explicit development project with credentials supplied only in process memory. It intercepts every Resend call while using actual Auth/database requests and verifies that the deployed endpoint is disabled. It writes exact non-secret cleanup IDs under `tmp/invitation-smoke-*`. Execute cleanup SQL with `supabase db query --linked --file` (including default notification rules), then delete the listed disposable Auth IDs and verify zero remaining fixtures. Never run this synthetic transport as a deployed provider.
+
+Provider references: [Supabase Auth link generation](https://supabase.com/docs/reference/javascript/auth-admin-generatelink), [email-code verification](https://supabase.com/docs/guides/auth/auth-email-passwordless), [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys). Phone onboarding and real email delivery still need acceptance; bundle and HTTP tests are separate evidence.
