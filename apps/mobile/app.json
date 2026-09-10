@@ -11,7 +11,8 @@
     },
     "android": {
       "package": "nz.co.klever.assets",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-secure-store",

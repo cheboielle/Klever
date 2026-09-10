@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "202778817568",
+    "project_id": "klever-assets-9aada",
+    "storage_bucket": "klever-assets-9aada.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202778817568:android:11af1d111580dc48beb845",
+        "android_client_info": {
+          "package_name": "nz.co.klever.assets"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2Khp9PKTt0ATufcumLV_J_Mx3k0JGX18"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
