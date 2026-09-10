@@ -21,7 +21,7 @@ export async function queueEntry(command:Omit<PendingCommand,'state'>,photoUri?:
 export async function flushQueue(options:{maxCommands?:number}={}){if(syncing)return syncing;syncing=flush(options.maxCommands??Infinity);try{const result=await syncing;if(result.synced)for(const fn of syncedListeners)fn();return result;}finally{syncing=null;}}
 async function flush(maxCommands:number):Promise<{online:boolean;synced:number}>{
  const q=currentOffline();if(!q||!supabase)return {online:false,synced:0};let synced=0;
- async function validate(){const access=await rpc<Access>('access_status');if(q!==currentOffline())throw Error('Account changed');if(!access.allowed){await clearOffline();await supabase!.auth.signOut({scope:'local'});throw Error('Access revoked');}await q!.validated(access);notifyOffline();return access;}
+ async function validate(){const access=await rpc<Access>('access_status');if(q!==currentOffline())throw Error('Account changed');if(!access.allowed){await clearOffline();if(access.reason!=='not_provisioned')await supabase!.auth.signOut({scope:'local'});throw Error('Business access unavailable');}await q!.validated(access);notifyOffline();return access;}
  try{const access=await validate();if(!access.can_write)return {online:true,synced:0};}
  catch{return {online:false,synced:0};}
  const blockedAssets=new Set<string>();let attempted=0;

@@ -22,6 +22,9 @@ import {flushQueue,queueEntry,subscribeSynced} from './src/offlineSync';
 import {AssetArchive} from './src/AssetArchive';
 import {AssetTypeSettings} from './src/AssetTypeSettings';
 import {TeamAccessControls} from './src/TeamAccessControls';
+import {TeamInvitations} from './src/TeamInvitations';
+import {JoinWorkspace} from './src/JoinWorkspace';
+import {InvitationLink} from './src/InvitationLink';
 import {ReadingCorrection} from './src/ReadingCorrection';
 import {PendingSync} from './src/PendingSync';
 import {notificationTarget} from './src/notificationTarget';
@@ -49,9 +52,10 @@ function Field({label,value,onChangeText,secure=false,numeric=false}:{label:stri
 }
 function Notice({text}:{text:string}){return <View accessibilityLiveRegion="polite" style={s.notice}><Text style={s.noticeText}>{text}</Text></View>;}
 
-export default function App(){return <SafeAreaProvider><KeyboardProvider><Workspace/></KeyboardProvider></SafeAreaProvider>;}
+export default function App(){return <SafeAreaProvider><KeyboardProvider><Workspace/><InvitationLink/></KeyboardProvider></SafeAreaProvider>;}
 function Workspace(){
   const [session,setSession]=useState<Session|null>(null),[access,setAccess]=useState<Access|null>(null),[ownerId,setOwnerId]=useState<string|null>(null);
+  const [joining,setJoining]=useState(false);
   const [boot,setBoot]=useState(true),[loading,setLoading]=useState(false),[error,setError]=useState('');
   const [assets,setAssets]=useState<Asset[]>([]),[members,setMembers]=useState<Member[]>([]),[types,setTypes]=useState<AssetType[]>([]);
   const [page,setPage]=useState<'assets'|'team'|'tasks'|'settings'>('assets'),[selected,setSelected]=useState<Asset|null>(null),[showArchived,setShowArchived]=useState(false);
@@ -66,6 +70,7 @@ function Workspace(){
   const [meterUnit,setMeterUnit]=useState<MeterUnit>('hours');
   const [hours,setHours]=useState(''),[logs,setLogs]=useState<HourLog[]>([]),[reason,setReason]=useState(''),[nextStatus,setNextStatus]=useState<AssetStatus>('Active');
   const [assignmentIds,setAssignmentIds]=useState<string[]>([]),[online,setOnline]=useState(false);
+  const joiningRef=useRef(false);
   const generation=useRef(0), detailGeneration=useRef(0), pendingReading=useRef<{id:string;capture:string}|null>(null);
   const admin=access?.role==='owner'||access?.role==='admin';
   const writable=Boolean(access?.can_write&&online);
@@ -77,6 +82,7 @@ function Workspace(){
   const captureWritable=Boolean(offlineState&&offlineEntryAllowed(offlineState));
 
   const clearData=useCallback(()=>{
+    joiningRef.current=false;setJoining(false);
     generation.current++;detailGeneration.current++;setAccess(null);setOwnerId(null);setAssets([]);setMembers([]);setTypes([]);setSelected(null);setLogs([]);setAssignmentIds([]);setShowAdd(false);setEditingAsset(null);setEditingMember(null);setMeterChanges([]);setHours('');setReason('');setPage('assets');setMenuOpen(false);setShowArchived(false);setOnline(false);pendingReading.current=null;
   },[]);
   const signOut=useCallback(async()=>{
@@ -91,11 +97,18 @@ function Workspace(){
       const a=await rpc<Access>('access_status');
       if(ticket!==generation.current)return;
       if(!a.allowed){
+        if(a.reason==='not_provisioned'){
+          if(joiningRef.current){setLoading(false);return;}
+          clearData();setLoading(false);const clearedGeneration=generation.current;
+          try{await clearOffline();}catch{if(clearedGeneration===generation.current)setError('Unable to clear saved workspace data. Please retry.');return;}
+          if(clearedGeneration===generation.current){setLoading(false);setError('');joiningRef.current=true;setJoining(true);}
+          return;
+        }
         await signOut();
-        setError(a.reason==='not_provisioned'?'Your login is ready, but your business access has not been set up yet.':'Your access has changed. Please sign in again or contact your administrator.');
+        setError('Your access has changed. Please sign in again or contact your administrator.');
         return;
       }
-      await currentOffline()?.validated(a);setAccess(a);
+      await currentOffline()?.validated(a);joiningRef.current=false;setJoining(false);setAccess(a);
       const canAdmin=a.role!=='technician';
       const results=await Promise.all([
         supabase.from('assets').select('id,asset_type_id,name,serial,status,current_hours,meter_revision,archived,meter_unit').order('name'),
@@ -117,7 +130,7 @@ function Workspace(){
       }else setError('Unable to refresh your workspace. Check your connection and retry.');
     }}
     finally{if(ticket===generation.current)setLoading(false);}
-  },[signOut,session?.user.id]);
+  },[clearData,signOut,session?.user.id]);
 
   useEffect(()=>{
     if(!supabase){setBoot(false);return;}
@@ -130,7 +143,7 @@ function Workspace(){
     return()=>{alive=false;subscription.unsubscribe();};
   },[clearData]);
   useEffect(()=>{if(session)void refresh();},[session?.user.id,refresh]);
-  useEffect(()=>{void configureBackgroundSync(Boolean(session)).catch(()=>{});},[session?.user.id]);
+  useEffect(()=>{void configureBackgroundSync(Boolean(session&&!joining)).catch(()=>{});},[session?.user.id,joining]);
   useEffect(()=>{
     if(AppState.currentState==='active')supabase?.auth.startAutoRefresh();
     const sub=AppState.addEventListener('change',state=>{
@@ -141,7 +154,7 @@ function Workspace(){
   },[session?.user.id,refresh]);
 
   useEffect(()=>subscribeSynced(()=>{if(session)void refresh();}),[session?.user.id,refresh]);
-  useEffect(()=>{if(!session)return;let active=true;let running=false;const sync=async()=>{if(running||AppState.currentState!=='active')return;running=true;try{const result=await flushQueue();if(active)setOnline(result.online);if(active&&(result.online&&!online))await refresh();}finally{running=false;}};void sync();const timer=setInterval(()=>void sync(),30000);return()=>{active=false;clearInterval(timer);};},[session?.user.id,online,refresh]);
+  useEffect(()=>{if(!session||joining)return;let active=true;let running=false;const sync=async()=>{if(running||AppState.currentState!=='active')return;running=true;try{const result=await flushQueue();if(active)setOnline(result.online);if(active&&(result.online&&!online))await refresh();}finally{running=false;}};void sync();const timer=setInterval(()=>void sync(),30000);return()=>{active=false;clearInterval(timer);};},[session?.user.id,joining,online,refresh]);
 
   async function run(action:()=>Promise<void>){
     if(busy)return;setBusy(true);setError('');
@@ -222,6 +235,7 @@ function Workspace(){
       </View><Text style={[s.muted,{marginTop:28,textAlign:'center'}]}>Simple maintenance. A better working day.</Text>
     </FormScroll></KeyboardAvoidingView>;
 
+  if(joining)return <JoinWorkspace key={session.user.id} email={session.user.email??''} onJoined={refresh} onSignOut={signOut}/>;
   if(!access)return <View style={s.center}>{loading?<ActivityIndicator color={colors.green}/>:null}<Text style={s.title}>Opening your business</Text>{error?<Notice text={error}/>:null}<Button title="Retry" onPress={()=>void refresh()}/><Button title="Sign out" onPress={()=>void signOut()} secondary/></View>;
 
   const filtered=pendingAssets.filter(a=>a.archived===Boolean(admin&&showArchived)).filter(a=>statusFilter==='all'||a.status===statusFilter).filter(a=>`${a.name} ${a.serial}`.toLowerCase().includes(search.toLowerCase()));
@@ -240,6 +254,7 @@ function Workspace(){
           <ProfilePhoto key={a.id+':'+photoVersion} kind="asset" target={a.id} compact/><View style={{flex:1,gap:5}}><Text style={s.assetName}>{a.name}</Text><Text style={s.small}>{a.serial||'No serial recorded'}</Text><Text style={[s.badge,{color:a.status==='Active'?colors.green:colors.amber}]}>{a.archived?'Archived':a.status}</Text></View><View style={{alignItems:'flex-end',gap:5}}><Text style={s.hours}>{Number(a.current_hours).toLocaleString()}</Text><Text style={s.small}>{a.meter_unit}</Text><Text style={s.link}>View →</Text></View>
         </Pressable>):<View style={s.card}><Text style={s.heading}>{search||statusFilter!=='all'?'No matching assets':showArchived?'No archived assets':'A fresh start'}</Text><Text style={s.muted}>{statusFilter!=='all'?'No assets have this status. Choose Show all assets to return.':showArchived?'Archived equipment and its history will appear here.':admin?'Add your first machine or vehicle to get started.':'Your administrator will assign your equipment here.'}</Text></View>}
       </>:page==='tasks'?<TaskPanel assets={activeAssets} admin={Boolean(admin)} writable={writable} captureWritable={captureWritable}/>:page==='team'?<>
+        {admin?<TeamInvitations writable={writable} online={online}/>:null}
         <View style={s.sectionRow}><Text style={s.heading}>Staff</Text><Text style={s.small}>{members.filter(m=>m.is_active).length} active</Text></View>
         {members.map(m=><View key={m.user_id} style={s.card}><View style={s.sectionRow}><Text style={s.assetName}>{m.name}</Text><Text style={s.badge}>{m.is_active?'Active':'Inactive'}</Text></View><Text style={s.small}>{m.user_id===ownerId?'owner':m.user_id===access.user_id?access.role:m.role}</Text><Text style={s.muted}>{m.phone||'No phone number recorded'}</Text><Text style={s.muted}>{m.contact_email||'No contact email recorded'}</Text>{m.job_title?<Text style={s.muted}>{m.job_title}</Text>:null}<ProfilePhoto kind="member" target={m.user_id} editable writable={writable}/><Button title="Edit details" secondary disabled={!writable||busy} onPress={()=>{setEditingMember(m);setMemberName(m.name);setMemberPhone(m.phone);setMemberEmail(m.contact_email??'');setMemberTitle(m.job_title??'');setError('');}}/>
           <TeamAccessControls member={m} ownerId={ownerId} viewerId={session.user.id} viewerIsOwner={access.role==='owner'} writable={writable} online={online} assets={activeAssets} onSaved={()=>refresh()} onOpenAsset={openAsset}/>

@@ -39,3 +39,11 @@ describe('offline synchronization',()=>{
   await env.q.enqueue(reading);env.rpc.mockImplementation(async(name:string)=>name==='access_status'?access:{});await flushQueue();expect(env.q.snapshot().commands[0]).toMatchObject({state:'blocked',reason:'The server response was incomplete. Retry this entry.'});
  });
 });
+
+it('keeps an unprovisioned invitee signed in but clears any cached business work',async()=>{
+ await env.q.enqueue(reading);env.rpc.mockResolvedValue({allowed:false,reason:'not_provisioned'});
+ expect((await flushQueue()).synced).toBe(0);expect(env.q).toBeNull();expect(env.wipe).toHaveBeenCalledOnce();expect(env.signOut).not.toHaveBeenCalled();expect(env.rpc.mock.calls.every(c=>c[0]==='access_status')).toBe(true);
+});
+it('a remotely revoked session still signs out before an invitation can be joined',async()=>{
+ env.rpc.mockResolvedValue({allowed:false,reason:'signed_out'});await flushQueue();expect(env.q).toBeNull();expect(env.signOut).toHaveBeenCalledOnce();
+});
