@@ -29,6 +29,16 @@ try{
   for(const [u,label] of [[a,'A'],[b,'B']])tenants.push(await rpc('provision_business',{p_owner:u.id,p_name:`TEST ONLY ${stamp} ${label}`,p_owner_name:'Test owner',p_write_until:new Date(Date.now()+3600000).toISOString()}));
   await rpc('provision_staff',{p_tenant:tenants[0],p_user:tech.id,p_name:'Test technician'});
   await rpc('provision_staff',{p_tenant:tenants[0],p_user:tech2.id,p_name:'Second test technician'});
+  const invited=await user('invited'),invitationId=randomUUID();
+  const invitedEmail=(await request('/auth/v1/user',{token:invited.access_token})).data.email;
+  const invitation=await rpc('create_staff_invitation',{p_id:invitationId,p_email:invitedEmail,p_name:'Invited test technician',p_phone:'123',p_job_title:'Test role'},b.access_token);
+  assert.equal(invitation.id,invitationId);
+  assert.deepEqual((await rpc('my_staff_invitations',{},invited.access_token)).map(row=>row.id),[invitationId]);
+  assert.equal((await request('/rest/v1/rpc/accept_staff_invitation',{method:'POST',body:{p_id:invitationId,p_name:'Wrong person'},token:tech.access_token,allowError:true})).ok,false);
+  await rpc('accept_staff_invitation',{p_id:invitationId,p_name:'Accepted test name',p_phone:'456',p_job_title:'Test title'},invited.access_token);
+  const joined=await rpc('access_status',{},invited.access_token);assert.equal(joined.tenant_id,tenants[1]);assert.equal(joined.role,'technician');
+  assert.equal((await request('/rest/v1/rpc/accept_staff_invitation',{method:'POST',body:{p_id:invitationId,p_name:'Repeat'},token:invited.access_token,allowError:true})).ok,false);
+  pass('Verified-email invitation joins the intended business once as technician without sending email');
   await rpc('save_staff_details',{p_user:tech.id,p_name:'Updated test technician',p_phone:'+64 21 555 0199'},a.access_token);
   const profile=(await request('/rest/v1/memberships?select=name,phone&user_id=eq.'+tech.id,{token:a.access_token})).data[0];
   assert.equal(profile.phone,'+64 21 555 0199');assert.equal(profile.name,'Updated test technician');pass('Admin can edit staff name and phone');
@@ -192,7 +202,7 @@ try{
   // Exact IDs created by this run only. Deferred owner invariants require one transaction.
   mkdirSync('tmp',{recursive:true});
   const ids=tenants.map(x=>{assert.match(x,/^[a-f0-9-]{36}$/);return `'${x}'`;}).join(',');
-  if(ids)writeFileSync('tmp/hosted-smoke-cleanup.sql',`begin;\nupdate public.tenants set write_until=now()-interval '1 day' where id in (${ids});\ndelete from private.service_notification_state where tenant_id in (${ids});\n${['notification_rules','device_tokens','notification_outbox','issue_resolutions','issues','compliance_items','template_applications','profile_photos','profile_photo_uploads','task_corrections','task_completions','task_submissions','task_person_state','tasks','service_corrections','service_admin_details','service_history','service_uploads','asset_service_settings','service_types','hour_logs','asset_history','asset_assignments','assets','asset_types','memberships','tenants'].map(t=>`delete from public.${t} where ${t==='tenants'?'id':'tenant_id'} in (${ids});`).join('\n')}\ncommit;`);
+  if(ids)writeFileSync('tmp/hosted-smoke-cleanup.sql',`begin;\nupdate public.tenants set write_until=now()-interval '1 day' where id in (${ids});\ndelete from private.service_notification_state where tenant_id in (${ids});\n${['staff_invitations','notification_rules','device_tokens','notification_outbox','issue_resolutions','issues','compliance_items','template_applications','profile_photos','profile_photo_uploads','task_corrections','task_completions','task_submissions','task_person_state','tasks','service_corrections','service_admin_details','service_history','service_uploads','asset_service_settings','service_types','hour_logs','asset_history','asset_assignments','assets','asset_types','memberships','tenants'].map(t=>`delete from public.${t} where ${t==='tenants'?'id':'tenant_id'} in (${ids});`).join('\n')}\ncommit;`);
   // Cleanup auth users only after the SQL transaction succeeds; IDs contain no credentials.
   writeFileSync('tmp/hosted-smoke-photos.json',JSON.stringify(photos));
   writeFileSync('tmp/hosted-smoke-users.json',JSON.stringify(users));

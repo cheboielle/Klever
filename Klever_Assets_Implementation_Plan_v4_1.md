@@ -109,3 +109,5 @@ At build time document actual setup/test/deploy commands in the repository; do n
 Final handover is a working product and operational instructions, not another architecture essay. Clearly identify any external action that prevents release and continue any remaining independent authorized work.
 
 10 September usability implementation: remove extra device authentication while retaining saved secure sessions and all server access checks. Preserve legacy API compatibility with app_lock always false. Use shared calendar controls and half-hour time selections; tuck secondary actions into the top-right menu. Full visual redesign follows functional acceptance.
+
+Owner-authorized ordering adjustment (10 September overnight): bring the scoped staff invitation and password-setup journey forward to support Stage A multi-user testing. Keep the full web portal, public owner signup and billing behind the existing core-proof gate. No real invitation emails until the sender/provider setup and recipients are authorized.

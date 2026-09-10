@@ -22,7 +22,7 @@ beforeAll(async()=>{
   await db.exec(`
     create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
     create schema auth; create schema storage;
-    create table auth.users(id uuid primary key,email text);
+    create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);
     create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id));
     create table auth.refresh_tokens(id bigint primary key,session_id uuid references auth.sessions(id) on delete cascade);
     create function auth.jwt() returns jsonb language sql stable as $$ select nullif(current_setting('request.jwt.claims',true),'')::jsonb $$;
@@ -946,4 +946,89 @@ describe('live access changes',()=>{
       expect((await db.query('select * from public.assets')).rows).toHaveLength(0);
     });
   });
+});
+
+
+describe('staff invitation acceptance',()=>{
+ const owner=id(1300),admin=id(1301),joiner=id(1302),second=id(1303),outsider=id(1304),unconfirmed=id(1305);
+ let tenant:string,otherTenant:string,invite:string,nextInvite:string;
+ beforeAll(async()=>{
+  for(const user of [owner,admin,joiner,second,outsider,unconfirmed]){
+   await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,$3)',[user,`${user}@example.invalid`,user===unconfirmed?null:new Date().toISOString()]);
+   await db.query('insert into auth.sessions values($1,$2)',[session(user),user]);
+  }
+  tenant=await value("select public.provision_business($1,'Invitation business','Invite owner',now()+interval '1 day')",[owner]);
+  otherTenant=await value("select public.provision_business($1,'Other invitation business','Other owner',now()+interval '1 day')",[outsider]);
+  await value("select public.provision_staff($1,$2,'Invite admin')",[tenant,admin]);
+  await asUser(owner,()=>value("select public.manage_staff($1,'promote')",[admin]));
+ });
+ const create=(user:string,emailUser:string,key:number)=>asUser(user,()=>value("select public.create_staff_invitation($1,$2,'New staff','123','Technician')",[id(key),`${emailUser}@example.invalid`]));
+ it('creates one pending invitation per email without consuming a seat; retries keep its identity',async()=>{
+  invite=(await create(admin,joiner,1310)).id;
+  expect((await create(admin,joiner,1310)).id).toBe(invite);
+  expect((await create(owner,joiner,1311)).id).toBe(invite);
+  nextInvite=(await create(owner,second,1312)).id;
+  expect(Number(await value('select count(*) from public.memberships where tenant_id=$1 and is_active',[tenant]))).toBe(2);
+  expect(Number(await value('select count(*) from public.staff_invitations where tenant_id=$1',[tenant]))).toBe(2);
+  await asUser(outsider,()=>expect(value("select public.create_staff_invitation($1,$2,'Forged')",[invite,`${joiner}@example.invalid`])).rejects.toThrow(/unavailable/));
+ });
+ it('only shows invitations to current admins or their verified recipient',async()=>{
+  await asUser(outsider,async()=>{
+   expect((await db.query('select id from public.staff_invitations where tenant_id=$1',[tenant])).rows).toHaveLength(0);
+   await expect(value('select public.cancel_staff_invitation($1)',[invite])).rejects.toThrow(/unavailable/);
+   await expect(value("select public.accept_staff_invitation($1,'Other person')",[invite])).rejects.toThrow(/unavailable/);
+  });
+  await asUser(joiner,async()=>{
+   expect((await value('select public.my_staff_invitations()')).map((i:any)=>i.id)).toEqual([invite]);
+   expect((await db.query('select id from public.staff_invitations')).rows).toHaveLength(0);
+   await expect(value("select public.create_staff_invitation($1,'nobody@example.invalid','No')",[id(1313)])).rejects.toThrow(/Access denied/);
+  });
+  await db.exec('set role anon');try{await expect(value('select public.my_staff_invitations()')).rejects.toThrow(/permission denied/);}finally{await db.exec('reset role');}
+ });
+ it('requires confirmed email and a current unrevoked session before joining',async()=>{
+  await create(owner,unconfirmed,1314);
+  await asUser(unconfirmed,()=>expect(value('select public.my_staff_invitations()')).rejects.toThrow(/Confirm your email/));
+  await db.query('delete from auth.sessions where user_id=$1',[joiner]);
+  try{await asUser(joiner,()=>expect(value("select public.accept_staff_invitation($1,'Joiner')",[invite])).rejects.toThrow(/Sign in again/));}
+  finally{await db.query('insert into auth.sessions values($1,$2)',[session(joiner),joiner]);}
+ });
+ it('accepts once as technician with personal details, regardless of the inviting admin role',async()=>{
+  await asUser(joiner,()=>value("select public.accept_staff_invitation($1,'Confirmed name','456','Field operator')",[invite]));
+  expect((await db.query('select role,name,phone,contact_email,job_title from public.memberships where user_id=$1',[joiner])).rows[0]).toEqual({role:'technician',name:'Confirmed name',phone:'456',contact_email:`${joiner}@example.invalid`,job_title:'Field operator'});
+  await asUser(joiner,async()=>{
+   await expect(value("select public.accept_staff_invitation($1,'Repeat')",[invite])).rejects.toThrow(/no longer available/);
+   expect(await value('select public.my_staff_invitations()')).toEqual([]);
+   await expect(value('select public.cancel_staff_invitation($1)',[nextInvite])).rejects.toThrow(/Admin/);
+  });
+ });
+ it('rechecks the last seat on acceptance and does not consume an unsuccessful invitation',async()=>{
+  await asUser(second,()=>expect(value("select public.accept_staff_invitation($1,'Second')",[nextInvite])).rejects.toThrow(/Staff limit/));
+  expect(await value('select accepted_at from public.staff_invitations where id=$1',[nextInvite])).toBeNull();
+  expect(Number(await value('select count(*) from public.memberships where tenant_id=$1 and is_active',[tenant]))).toBe(3);
+ });
+ it('rejects expired and cancelled invitations while allowing read-only cancellation',async()=>{
+  await db.query("update public.staff_invitations set expires_at=now()-interval '1 second' where id=$1",[nextInvite]);
+  await asUser(second,()=>expect(value("select public.accept_staff_invitation($1,'Second')",[nextInvite])).rejects.toThrow(/expired/));
+  nextInvite=(await create(owner,second,1315)).id;
+  expect(nextInvite).toBe(id(1315));
+  await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenant]);
+  try{
+   await asUser(second,()=>expect(value("select public.accept_staff_invitation($1,'Second')",[nextInvite])).rejects.toThrow(/read-only/));
+   await expect(create(owner,second,1316)).rejects.toThrow(/read-only/);
+   await asUser(owner,()=>value('select public.cancel_staff_invitation($1)',[nextInvite]));
+   await asUser(second,()=>expect(value("select public.accept_staff_invitation($1,'Second')",[nextInvite])).rejects.toThrow(/no longer available/));
+  }finally{await db.query("update public.tenants set write_until=now()+interval '1 day' where id=$1",[tenant]);}
+ });
+ it('cannot use a new invitation to reactivate an existing deactivated membership',async()=>{
+  await asUser(owner,()=>value("select public.manage_staff($1,'deactivate')",[joiner]));
+  await expect(create(owner,joiner,1317)).rejects.toThrow(/already has business access/);
+ });
+ it('withdraws joining authority if the inviter no longer has admin access',async()=>{
+  const pending=(await create(admin,second,1318)).id;
+  await asUser(owner,()=>value("select public.manage_staff($1,'demote')",[admin]));
+  await asUser(second,async()=>{
+   expect(await value('select public.my_staff_invitations()')).toEqual([]);
+   await expect(value("select public.accept_staff_invitation($1,'Second')",[pending])).rejects.toThrow(/unavailable/);
+  });
+ });
 });

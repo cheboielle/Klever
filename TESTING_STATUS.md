@@ -4,7 +4,7 @@ Updated 10 September 2026. This is a coverage record, not a claim that the app i
 
 ## Latest results
 
-- 179 automated checks passed across 14 files, including 126 database/permission checks.
+- 187 automated checks passed across 14 files, including 134 database/permission checks.
 - The 126 database checks passed again after extending the hosted test script.
 - 32 checks against the actual development Auth, database, photo storage and export endpoints passed with disposable businesses/users/photos. No customer notifications sent. Cleanup independently verified zero remaining test businesses, users or photos.
 - Android version 0.1.0 (4), build `59ce0345-3a46-4b8c-b59d-b83290dfccdc`, verified FINISHED. This confirms packaging, not phone acceptance.
@@ -71,3 +71,5 @@ Android build 5 (`5321b229-5f94-4bae-9599-b8e53dad0b63`) verified FINISHED. Brow
 - QA asset rearchived after checks. No real assets/staff/settings changed. No photos/notifications sent.
 
 These paths passed without code changes; no repeat automated suite was needed. Next independent construction: scoped secure staff invitation/onboarding. Remaining browser gaps include service/photo corrections and technician-role flows; actual phone capabilities remain unverified.
+
+Invitation backend acceptance: 8 new database tests passed for pending-seat accounting, retry identity, tenant/admin access, verified email/session, single-use acceptance, capacity, cancellation/expiry/read-only handling, deactivated membership protection and inviter demotion. Latest hosted run passed 33 checks including the new invitation path. Admin/join screens and secure email/password delivery are still pending; database support does not mean staff onboarding is available in the installed app.
