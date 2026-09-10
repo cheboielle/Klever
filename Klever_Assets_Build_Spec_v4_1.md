@@ -43,7 +43,7 @@ Admin deactivation preserves history and blocks the next online data request, ev
 
 On launch, foreground, and reconnect, check access explicitly. Confirmed deactivation/revocation clears credentials, cached tenant data, pending queue, and temporary photos on that device. A temporary network error does not clear anything. Remote sign-out cannot erase data on an offline phone until it reconnects; this is accepted. Tell the admin when deactivation may discard unsynced phone records, without introducing a remote-device management system.
 
-Store native tokens in Expo SecureStore. Optional business-wide native app lock defaults OFF and uses biometrics/device passcode, not a separate custom application PIN. When enabled, require device credential setup and lock on launch/foreground. Use normal secure session handling on the web. Auth handles password hashing, refresh, expiring single-use invitation links, and password recovery.
+Store native tokens in Expo SecureStore. The phone screen lock protects saved sessions; do not add an extra app PIN, biometric prompt or foreground lock (owner decision, 10 September 2026). Use normal secure session handling on the web. Auth handles password hashing, refresh, expiring single-use invitation links, and password recovery.
 
 ## 4. Roles and assignments
 
@@ -200,7 +200,7 @@ Work in complete tested slices, not a giant unverified code dump. Follow the imp
 
 Keep checks focused on meaningful failures: cross-tenant access, technician assignment/admin-field protection, deactivated/revoked sessions, meter/service arithmetic, duplicate offline submission, original evidence preservation, required-photo completion, notification delivery attempts, and subscription write permissions including grace/read-only.
 
-Run tenant-isolation tests on every code/database change, using actual user contexts, and test affected behaviour as it changes. Test real-device camera/push/lock and short offline operation before claiming native readiness. Validate migration counts/media and restore both database and photos. Inspect a realistic long maintenance PDF. Do not add adversarial clock-testing, enterprise load targets, or elaborate formal verification to this release.
+Run tenant-isolation tests on every code/database change, using actual user contexts, and test affected behaviour as it changes. Test real-device camera/push and short offline operation before claiming native readiness. Validate migration counts/media and restore both database and photos. Inspect a realistic long maintenance PDF. Do not add adversarial clock-testing, enterprise load targets, or elaborate formal verification to this release.
 
 ## 13. Deployment and remaining external inputs
 
@@ -216,3 +216,5 @@ Final delivery includes source, migrations, reproducible setup, protected provid
 Owner clarification (9 September 2026): admin editing includes existing asset name, serial and type, and staff name/phone number. Changing contact details must not change login credentials, roles, assignments or historical evidence. Meter unit setup mistakes use the explicit correction described above.
 
 Owner addition (9 September 2026): staff profiles include an optional editable profile photo, alongside name and phone number. Asset photos were already scoped. Asset and staff profile photos may be taken with the camera or selected from the gallery, and are replaceable configuration photos rather than immutable service evidence. Keep profile media private under the same live tenant/role visibility as the parent profile.
+
+Usability decision (10 September 2026): staff personal details include editable contact email and job title, independent of sign-in credentials and permission role. All editable dates use a calendar and reminder times use half-hour choices. Put Settings and Sign out in a top-right menu. Defer the full visual redesign until functionality and testing are stable.

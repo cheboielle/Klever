@@ -19,7 +19,7 @@ Paddle owns payment collection/retries, and Resend sends transactional emails. P
 Start with the entities in the build brief and add these supporting structures only as needed:
 
 - A single staff/membership source for role, active flag, tenant, and Auth linkage; a many-to-many asset assignment table; exactly one active owner invariant.
-- Tenant settings for timezone, app lock, and reporting currency; separate protected entitlement/plan/provider fields.
+- Tenant settings for timezone and reporting currency; separate protected entitlement/plan/provider fields.
 - Per-asset service schedule/baseline records so machines sharing a type do not share last-service hours/date. Asset overrides precede type defaults.
 - Stable task occurrence IDs and checklist item IDs. Business tasks support shared completion or separate occurrences for each active technician, selected by the admin; preserve history when changing mode. Save the completed instructions/checklist labels with the sign-off; a full config-versioning platform is unnecessary.
 - Immutable evidence records with submission ID, both timestamps, correction target/reason, and necessary display snapshots. Separate protected cost/mechanic-note data from technician-readable records.
@@ -62,7 +62,7 @@ Inspect the workspace and establish repeatable local/staging setup, pinned depen
 
 ### A2 Native everyday workflows
 
-Build complete usable native flows for assets/types including editable asset photos, staff profiles including editable profile pictures/name/phone, staff deactivation/reassignment, current/last-service setup, hours/countdowns/corrections, service sign-off, recurring tasks/checklists, issues/resolution, compliance, and native lock. Apply the supplied starter templates per asset without duplicating or overwriting edits. Keep technical concepts out of the UI.
+Build complete usable native flows for assets/types including editable asset photos, staff profiles including editable profile pictures/name/phone/contact email/job title, staff deactivation/reassignment, current/last-service setup, hours/countdowns/corrections, service sign-off, recurring tasks/checklists, issues/resolution, compliance. Apply the supplied starter templates per asset without duplicating or overwriting edits. Keep technical concepts out of the UI.
 
 **Pass:** the worked 1,240/1,200/100-hour example produces 60 hours remaining; service resets correctly; Calendar/Both and monthly/custom-day tasks behave as specified; technicians see only permitted work; all config remains editable; required evidence is enforced server-side.
 
@@ -70,7 +70,7 @@ Build complete usable native flows for assets/types including editable asset pho
 
 Complete persistent queue/cache and media finalization; server notifications with the urgent minimum, retries, and recurring scheduling; admin CSV/PDF exports including the realistic per-asset maintenance report. Use the same server exports from native now and web later.
 
-**Pass:** airplane-mode capture survives app restart and syncs once; old readings cannot lower the current meter; duplicate completion is handled plainly; failed uploads cannot masquerade as complete. Verify iOS/Android camera, push, and lock on actual devices when available. Inspect a long PDF for photo inclusion, dates, performer, corrections, and clean pagination.
+**Pass:** airplane-mode capture survives app restart and syncs once; old readings cannot lower the current meter; duplicate completion is handled plainly; failed uploads cannot masquerade as complete. Verify iOS/Android camera and push on actual devices when available. Inspect a long PDF for photo inclusion, dates, performer, corrections, and clean pagination.
 
 ### A4 Klever data and proof in use
 
@@ -107,3 +107,5 @@ Run the specified tenant-isolation suite on each code/database change. Add focus
 At build time document actual setup/test/deploy commands in the repository; do not invent commands before tools are selected. Keep `BUILD_STATUS.md` current with stage, implemented work, exact validation result, deployment state, external blockers, next action, and only meaningful deviations from defaults. No secret values. Resume from that state and actual files instead of reopening the historical audit.
 
 Final handover is a working product and operational instructions, not another architecture essay. Clearly identify any external action that prevents release and continue any remaining independent authorized work.
+
+10 September usability implementation: remove extra device authentication while retaining saved secure sessions and all server access checks. Preserve legacy API compatibility with app_lock always false. Use shared calendar controls and half-hour time selections; tuck secondary actions into the top-right menu. Full visual redesign follows functional acceptance.

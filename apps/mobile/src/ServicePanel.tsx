@@ -1,3 +1,4 @@
+import {DateField} from './DateField';
 import React,{useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import type {Asset,MeterUnit} from '@klever/domain';
@@ -98,7 +99,7 @@ export function ServicePanel({asset,admin,writable,captureWritable=writable}:{as
       <Text style={styles.label}>Baseline for {asset.name}</Text><Choices value={kind} set={setKind} options={[{value:'last_service',label:'Last service'},{value:'starting_point',label:'Starting point'},{value:'unknown',label:'Not known yet'}]}/>
       {kind!=='unknown'?<>
         {mode!=='calendar'?<Input label={`${kind==='starting_point'?'Starting':'Last-service'} reading (${asset.meter_unit})`} value={baseline} set={setBaseline} numeric/>:null}
-        {mode!=='meter'?<Input label={`${kind==='starting_point'?'Starting':'Last-service'} date (YYYY-MM-DD)`} value={date} set={setDate}/>:null}
+        {mode!=='meter'?<DateField label={`${kind==='starting_point'?'Starting':'Last-service'} date`} value={date} onChange={setDate} clearable/>:null}
         <Text style={styles.small}>Current asset reading: {format(Number(asset.current_hours))} {asset.meter_unit}. Leave an unknown baseline blank.</Text>
       </>:<Text style={styles.small}>The service will show “Baseline required” until this is entered.</Text>}
       <Action label={busy?'Saving…':'Save service schedule'} onPress={()=>void save()} disabled={busy||!writable}/><Action label="Cancel" secondary onPress={()=>setEditor(undefined)} disabled={busy}/>

@@ -1,3 +1,4 @@
+import {timeOptions} from './dateTimeValues';
 import {SelectField} from './SelectField';
 import {FormScroll} from './FormScroll';
 import React,{useState} from 'react';
@@ -28,7 +29,7 @@ export function NotificationSettings({writable}:{writable:boolean}){
  <Choice label={rule.enabled?'Enabled':'Disabled'} selected={rule.enabled} disabled={!writable||busy} onPress={()=>change(rule.kind,{enabled:!rule.enabled})}/>
  <SelectField label="Who receives it" value={rule.recipients} options={[{value:'admin',label:'Admins'},{value:'assigned',label:'Assigned technicians'},{value:'both',label:'Both'}]} disabled={!writable||busy} onChange={recipients=>change(rule.kind,{recipients})}/>
  <SelectField label="Delivery" value={rule.channel} options={[{value:'push',label:'Phone alert'},{value:'email',label:'Email'},{value:'both',label:'Both'}]} disabled={!writable||busy} onChange={channel=>change(rule.kind,{channel})}/>
- {['issue_reported','reassignment'].includes(rule.kind)?<Text>Sent when the change happens.</Text>:<><Text>Local time (24-hour format)</Text><TextInput accessibilityLabel={`${labels[rule.kind]} time`} value={rule.local_time.slice(0,5)} onChangeText={local_time=>change(rule.kind,{local_time})} editable={writable&&!busy} style={{padding:12,backgroundColor:'white'}}/>
+ {['issue_reported','reassignment'].includes(rule.kind)?<Text>Sent when the change happens.</Text>:<><SelectField label={`${labels[rule.kind]} time (business timezone)`} value={rule.local_time.slice(0,5)} options={timeOptions(rule.local_time)} onChange={local_time=>change(rule.kind,{local_time})} disabled={!writable||busy}/>
  <View style={{flexDirection:'row',gap:6,flexWrap:'wrap'}}>{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day,index)=><Choice key={day} label={day} selected={rule.weekdays.includes(index+1)} disabled={!writable||busy} onPress={()=>change(rule.kind,{weekdays:rule.weekdays.includes(index+1)?rule.weekdays.filter(d=>d!==index+1):[...rule.weekdays,index+1]})}/>)}</View>{rule.kind==='service_due'?<Text>A new due service also triggers an alert before its next scheduled reminder.</Text>:null}</>}
  <Choice label="Save reminder" disabled={!writable||busy} onPress={()=>void run(()=>save(rule))}/></View>)}
  </FormScroll></Modal></>;

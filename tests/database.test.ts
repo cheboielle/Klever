@@ -202,6 +202,23 @@ describe('editing details and correcting meter setup',()=>{
       expect((await db.query('select phone from public.memberships where user_id=$1',[techB])).rows).toHaveLength(0);
     });
   });
+  it('protects staff email/title with the same tenant, role and write checks',async()=>{
+    await asUser(ownerA,async()=>{
+      await value("select public.save_staff_details($1,'Updated technician','123','tech@example.nz','Senior technician')",[techA]);
+      expect((await db.query('select contact_email,job_title,role,is_active from public.memberships where user_id=$1',[techA])).rows[0]).toEqual({contact_email:'tech@example.nz',job_title:'Senior technician',role:'technician',is_active:true});
+      await expect(value("select public.save_staff_details($1,'Other','123','other@example.nz','Title')",[techB])).rejects.toThrow(/unavailable/);
+      await expect(value("select public.save_staff_details($1,'Wrong','123','invalid','Title')",[techA])).rejects.toThrow(/valid contact email/);
+      await value("select public.save_staff_details($1,'Updated technician','456')",[techA]);
+      expect(await value('select contact_email from public.memberships where user_id=$1',[techA])).toBe('tech@example.nz');
+    });
+    await asUser(techA,async()=>{
+      await expect(value("select public.save_staff_details($1,'No','123','tech@example.nz','Title')",[techA])).rejects.toThrow(/Admin/);
+      expect((await db.query('select contact_email,job_title from public.memberships where user_id=$1',[techB])).rows).toHaveLength(0);
+    });
+    await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenantA]);
+    try{await asUser(ownerA,()=>expect(value("select public.save_staff_details($1,'No','123','','')",[techA])).rejects.toThrow(/read-only/));}
+    finally{await db.query("update public.tenants set write_until=now()+interval '30 days' where id=$1",[tenantA]);}
+  });
   it('descriptive edits preserve the reading and meter unit',async()=>{
     await asUser(ownerB,async()=>{
       editable=await value("select public.save_asset('Setup typo',$1,'old',10)",[typeB]);
@@ -729,7 +746,7 @@ describe('business settings and recorded currency',()=>{
   await asUser(ownerA,async()=>{
    expect(await value("select public.save_business_settings('Business A','Pacific/Auckland',true,'AUD',$1)",[original.revision])).toBe(true);
    expect(await value("select public.save_business_settings('Stale','Pacific/Auckland',false,'NZD',$1)",[original.revision])).toBe(false);
-   expect(await value('select public.access_status()')).toMatchObject({app_lock:true,reporting_currency:'AUD'});
+   expect(await value('select public.access_status()')).toMatchObject({app_lock:false,reporting_currency:'AUD'});
   });
   expect(await asUser(ownerB,()=>value('select public.business_settings()'))).toMatchObject({name:'Business B',currency:'NZD'});
   await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenantA]);
