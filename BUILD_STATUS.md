@@ -1,10 +1,10 @@
 # Klever Assets build status
 
-Updated: 9 September 2026.
+Updated: 11 September 2026. Latest checkpoints are appended below; this opening overview reflects the current state.
 
 ## Current stage
 
-Stage A is in progress. A1 database/access foundation is deployed to the supplied development Supabase project; A2 asset/team/readings and service and recurring task screens are implemented and usable in the local preview. Stage A is not complete. No signed native build, store submission, production release, live notifications, billing, or legacy cutover has occurred.
+Stage A is in progress. Core native workflows and the owner-authorized early invitation slice are implemented; development migrations through 023 are deployed. Signed internal Android build 6 is finished. Isolated browser onboarding, service/photo/export, company tasks/reconnect and asset/staff/issue/compliance acceptance passed. Physical-phone acceptance, real email/push, legacy migration and offsite recovery remain release gates. No store release, live billing or legacy cutover has occurred. Later checkpoints record fixes not yet included in build 6.
 
 ## Projects and access
 
@@ -12,8 +12,8 @@ Stage A is in progress. A1 database/access foundation is deployed to the supplie
 - Supabase: https://blzubtujrxpcnfphcrny.supabase.co. CLI login/link established. Publishable key in ignored apps/mobile/.env.local. Administration keys used only in process memory.
 - Migrations 202609090001 foundation, 202609090002 meter units, 202609090003 editable details, 202609090004 service schedules, 202609090005 service evidence, 202609090006 private photo downloads, 202609090007 service corrections, 202609090008 tasks, 202609090009 profile photos, 202609090010 starter library, 202609090011 issues/compliance, 202609090012 delivery, 202609090013 reminder rules, and 202609090014 exports are applied. The service-photo, notification-worker (disabled) and export-report Edge Functions are deployed. Hosted signup disabled, development redirect configured, upload limit 10 MiB. Other hosted settings preserved.
 - Owner che@klever.co.nz provisioned with 90 days of explicit internal development access. Owner confirmed successful login. Private setup helper has stopped. Six-character minimum requested by owner and recorded in Supabase config.
-- Expo project a33d4b36-8e52-4f3f-9de9-b960fac88b3b configured with slug klever-nz. Signing, package/bundle IDs and EAS ownership not yet verified. Owner has both phone platforms.
-- Local preview: http://localhost:8081/ while the development server runs. Browser preview sessions are memory-only; reloads may require login. Native credentials use SecureStore.
+- Expo project a33d4b36-8e52-4f3f-9de9-b960fac88b3b configured with slug klever-nz. EAS ownership, nz.co.klever.assets package and managed signing are verified through completed internal Android builds. Owner has both phone platforms.
+- Current isolated web preview: http://127.0.0.1:8085/ using the documented web-only export/server. Owner's existing signed-in preview at 8083 is preserved. Browser preview sessions are memory-only; reloads may require login. Native credentials use SecureStore.
 
 ## Authoritative instructions
 
@@ -21,9 +21,9 @@ Read AGENTS.md, Klever_Assets_Build_Spec_v4_1.md and Klever_Assets_Implementatio
 
 ## Implemented
 
-- Expo SDK 57 app: login, live access checks, optional device lock, asset register/search, asset/type creation, status/assignment controls, online meter readings and history, staff deactivation/remote sign-out.
+- Expo SDK 57 app: login, live access checks, phone-protected saved sessions without a second app lock, asset register/search, asset/type creation, status/assignment controls, online meter readings and history, staff deactivation/remote sign-out.
 - Admin asset editing: name, serial, type; Hours/Kilometres correction with explicit current reading, reason and confirmation. Corrections preserve prior reading units, append audit details and advance the meter revision. Stale old-unit readings cannot overwrite the corrected meter. Cross-unit correction targets are rejected.
-- Admin team editing: name and phone number for existing members, with role/access/credentials unchanged. Add-team-member remains planned; owner explicitly said not to reprioritize invitations.
+- Admin team editing: name, phone, contact email and job title. Contact email does not change login identity. Owner later authorized bringing staff invitations/password setup forward; implemented and browser/hosted tested, with real delivery disabled pending sender setup.
 - Editable asset photos and team profile pictures support camera/gallery, preview, upload retry, replacement and removal. Asset register thumbnails use the private current image. Only admins edit these photos; readers retain parent asset/profile permissions. A new upload is finalized before replacing the current picture; obsolete pictures are no longer downloadable through the client. Service/task evidence is unchanged.
 - Protected PostgreSQL commands/RLS for tenants, role/assignment limits, owner/seat invariants, live Auth sessions, immutable readings and private default-deny media bucket.
 - Service scheduling supports per-asset definitions, type defaults, asset overrides, separate baselines, Hours/Km/Calendar/Both server-calculated due states, editing and per-asset archival.
@@ -274,3 +274,10 @@ Company task/browser reconnect checkpoint (11 September 00:20–00:31): added sc
 Observed app defect fixed: a failed history fetch during disconnection left its error visible beside the later confirmed task-sync success. TaskDetail now clears that stale error when the exact submitted record is confirmed in history. Final browser assertion verifies successful sync without the old fetch error. All 201 tests (139 isolation), mobile TypeScript, web-only visual export and web/Android/iOS bundles passed. Correct preview 8085 refreshed; real owner 8083 session untouched. No migration, email or native build submitted. This fix and the earlier header fix remain local source pending the next meaningful Android update; build 6 remains FINISHED and does not include them.
 
 Exact synthetic cleanup completed between attempts and after the passing run; final hosted query verified zero task-test tenants and accounts across attempts. No photos were used in this task slice. Source/status checkpoint should be committed/pushed. Next independent acceptance: isolated asset/staff profile photo replacement and editing, issue report/resolution and compliance flows, using synthetic records and preserving real data. Batch any meaningful fixes into the next internal Android update. Do not repeat passing invitation/service/export/task checks or poll build 6. Real-device testing, verified sender/authorized recipients, legacy sources and offsite/hosted recovery target remain external inputs. Continue overnight heartbeat through 8am 11 September and leave an honest morning handover; full portal/billing/visual redesign remain deferred.
+
+
+Asset/staff/issue/compliance acceptance (11 September 00:35–00:44): five isolated owner/technician UI checks passed. Asset gallery photo upload/replacement/confirmed removal; confirmed hours-to-km correction to 2500 and edited serial; staff gallery upload/replacement and phone/contact email/title edits; technician issue report with admin resolution and read-only technician resolution view; calendar-selected compliance creation, renewal, archive and restore with technician editing denied. Gallery fixture is the earlier simulated-camera image tmp/browser-service/evidence.png; these are actual web file-picker/storage paths, not native gallery/camera proof. No actual alerts or emails sent.
+
+Observed app bug fixed: Save issue could refresh before the queued write synced, leaving “No issues reported” despite a confirmed server record. AssetCare now subscribes to successful queue sync and reloads its records; test asserts the reported issue appears without manual refresh. Compliance harness initially collapsed an already-expanded archived card; corrected the test, no compliance app change. All 201 tests (139 isolation), mobile TypeScript, web-only preview export, all-platform exports and whitespace checks passed. Final harness-only change reran 139 isolation checks. No migration. All exact fixtures cleaned between attempts; final queries verified zero care-test tenants/users and zero photos at the four final exact Storage paths. Real data and owner browser untouched.
+
+Next: commit/push this checkpoint, then submit one internal Android build combining the header, task reconnect-feedback and issue-refresh fixes. Record source/build ID and verify completion at a later useful point; do not duplicate builds. Further independent acceptance can cover a stale/lower offline reading and a queued write after reassignment/deactivation using isolated UI accounts, confirming clear review feedback and unchanged accepted readings. Broader actual phone, sender, legacy and recovery gates remain external. The opening status overview was corrected where it still claimed no signed build, an optional app lock or unimplemented invitations. Continue to keep later verification distinct from those historical entries.

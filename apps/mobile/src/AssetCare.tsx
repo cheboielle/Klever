@@ -1,6 +1,6 @@
 import {DateField} from './DateField';
 import {PendingSync} from './PendingSync';
-import {queueEntry,flushQueue} from './offlineSync';
+import {queueEntry,flushQueue,subscribeSynced} from './offlineSync';
 import React,{useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Pressable,Text,TextInput,View} from 'react-native';
 import * as Crypto from 'expo-crypto';
@@ -16,7 +16,7 @@ export function AssetCare({assetId,admin,writable,captureWritable=writable}:{ass
  const [editing,setEditing]=useState<Compliance|null|undefined>(undefined),[label,setLabel]=useState(''),[date,setDate]=useState(''),[days,setDays]=useState('30, 7'),[assigned,setAssigned]=useState(false),[archives,setArchives]=useState(false),[remove,setRemove]=useState(false),[expanded,setExpanded]=useState<string|null>(null);
  const ticket=useRef(0),submission=useRef<{id:string;capture:string}|null>(null),resolutionId=useRef<string|null>(null);
  async function load(){const current=++ticket.current;setLoading(true);try{const [a,b]=await Promise.all([rpc<Issue[]>('list_asset_issues',{p_asset:assetId}),rpc<Compliance[]>('list_compliance',{p_asset:assetId})]);if(current===ticket.current){setIssues(a);setItems(b);setError('');}}catch(e){if(current===ticket.current)setError(e instanceof Error?e.message:'Unable to load asset records.');}finally{if(current===ticket.current)setLoading(false);}}
- useEffect(()=>{void load();return()=>{ticket.current++;};},[assetId]);
+ useEffect(()=>{const stop=subscribeSynced(()=>void load());void load();return()=>{stop();ticket.current++;};},[assetId]);
  async function run(work:()=>Promise<void>,capture=false){if(busy||!(capture?captureWritable:writable))return;setBusy(true);setError('');try{await work();await load();}catch(e){setError(e instanceof Error?e.message:'Unable to save. Check your connection and retry.');}finally{setBusy(false);}}
  function edit(item:Compliance|null){setEditing(item);setLabel(item?.label??'');setDate(item?.due_date??'');setDays(item?.lead_days.join(', ')??'30, 7');setAssigned(item?.notify_assigned??false);setRemove(false);}
  async function saveCompliance(archive=false){await run(async()=>{

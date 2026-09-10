@@ -126,3 +126,6 @@ For browser visuals, export separately with `node node_modules/expo/bin/cli expo
 
 
 `scripts/browser-task-smoke.mjs` uses the same isolated runtime/8085 preview with one disposable owner and two technicians. It creates shared and individual company tasks through the UI, checks per-person progress, then disconnects one browser context and verifies a queued completion syncs exactly once after reconnect. It waits for task-list refresh completion before opening cards. This is browser network simulation, not native persistence/restart proof. Execute its exact tmp/browser-task-cleanup.sql, delete listed Auth IDs and verify cleanup after each run; no task photos or emails are used.
+
+
+`scripts/browser-care-smoke.mjs` checks asset/staff gallery changes and details, technician issue/admin resolution and calendar compliance creation/renewal/archive/restore in isolated contexts. It uses the synthetic image tmp/browser-service/evidence.png produced by the service runner; run that fixture-producing check first if the file is missing. No real image or notification is used. It verifies new issues appear after queue sync without manual refresh. Clean exact tmp/browser-care-photos.json Storage paths, then browser-care-cleanup.sql rows and listed Auth users, verifying zero fixtures. This does not exercise Android/iOS gallery or keyboard behaviour.
