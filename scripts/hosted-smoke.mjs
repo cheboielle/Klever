@@ -32,6 +32,13 @@ try{
   await rpc('save_staff_details',{p_user:tech.id,p_name:'Updated test technician',p_phone:'+64 21 555 0199'},a.access_token);
   const profile=(await request('/rest/v1/memberships?select=name,phone&user_id=eq.'+tech.id,{token:a.access_token})).data[0];
   assert.equal(profile.phone,'+64 21 555 0199');assert.equal(profile.name,'Updated test technician');pass('Admin can edit staff name and phone');
+  const contact={p_user:tech.id,p_name:profile.name,p_phone:profile.phone,p_contact_email:'synthetic@example.invalid',p_job_title:'Test technician title'};
+  await rpc('save_staff_details',contact,a.access_token);
+  const details=(await request('/rest/v1/memberships?select=contact_email,job_title&user_id=eq.'+tech.id,{token:a.access_token})).data[0];
+  assert.deepEqual(details,{contact_email:contact.p_contact_email,job_title:contact.p_job_title});
+  assert.equal((await request('/rest/v1/rpc/save_staff_details',{method:'POST',body:contact,token:tech.access_token,allowError:true})).ok,false);
+  assert.equal((await request('/rest/v1/rpc/save_staff_details',{method:'POST',body:contact,token:b.access_token,allowError:true})).ok,false);
+  assert.equal((await tech.login()).user.email.includes(stamp),true);pass('Staff contact email/title persist without changing sign-in and reject technician/cross-business edits');
   const typeA=await rpc('save_asset_type',{p_name:'Test type'},a.access_token),typeB=await rpc('save_asset_type',{p_name:'Test type'},b.access_token);
   const assetA=await rpc('save_asset',{p_name:'Assigned test asset',p_type:typeA,p_initial_hours:1240,p_meter_unit:'km'},a.access_token);
   const unassignedAsset=await rpc('save_asset',{p_name:'Unassigned test asset',p_type:typeA},a.access_token);
@@ -147,10 +154,11 @@ try{
   assert.equal((await request('/rest/v1/rpc/correct_asset_reading',{method:'POST',body:correctionArgs,token:tech.access_token,allowError:true})).ok,false);
   pass('Current reading correction preserves setup evidence, exports its link and retries once');
   const businessSettings=await rpc('business_settings',{},a.access_token);
-  const settingsArgs={p_name:businessSettings.name,p_timezone:businessSettings.timezone,p_lock:false,p_currency:'AUD',p_revision:businessSettings.revision};
+  const settingsArgs={p_name:businessSettings.name,p_timezone:businessSettings.timezone,p_lock:true,p_currency:'AUD',p_revision:businessSettings.revision};
   assert.equal(await rpc('save_business_settings',settingsArgs,a.access_token),true);
   assert.equal(await rpc('save_business_settings',{...settingsArgs,p_currency:'NZD'},a.access_token),false);
   assert.equal((await rpc('access_status',{},a.access_token)).reporting_currency,'AUD');
+  assert.equal((await rpc('access_status',{},a.access_token)).app_lock,false);
   assert.equal((await rpc('business_settings',{},b.access_token)).currency,'NZD');
   assert.equal((await request('/rest/v1/rpc/business_settings',{method:'POST',body:{},token:tech.access_token,allowError:true})).ok,false);
   pass('Business settings enforce admin access, tenant boundaries and stale-edit protection');
