@@ -8,7 +8,7 @@ Updated 11 September 2026. This records proven coverage; Stage A and release acc
 - Latest hosted foundation smoke: 33 checks. Focused invitation delivery/Auth smoke: 10 checks, with all email transport intercepted.
 - 26 isolated browser acceptance scenarios passed across six runners: onboarding (5), service/photo/export (4), company tasks/reconnect (4), asset/staff/issues/compliance (5), queued reading/access changes (4), required evidence/read-only (4). The access runner was repeated after the relevant access-display fix and still passed; repeated runs are not counted as new coverage.
 - Disposable Auth users, businesses and uploaded photos were cleaned after testing and verified absent. Real owner records, archived QA evidence and the signed-in 8083 browser were preserved.
-- Android build 7 (6349d8e2-8eca-4334-8632-2bb51889b114) is FINISHED fallback. Build 8 failed in the Kotlin/Java build tools. Replacement build 9 (4e7c81d1-c841-4ef9-82e1-9d868d464e62) is submitted with a clean cache and explicit font dependency; initial NEW. The repaired source passes 201 tests, TypeScript/platform bundles and Expo Doctor 21/21. Verify FINISHED before installing; none of these results establishes device acceptance.
+- Latest Android build 9 (4e7c81d1-c841-4ef9-82e1-9d868d464e62), version 0.1.0 (9), verified FINISHED at 08:02 NZ 11 September. Install as an update. Build 8 failed in Kotlin/Java build tooling; the clean-cache replacement with explicit font dependency succeeded. Repaired source passes 201 tests, TypeScript/platform bundles and Expo Doctor 21/21. Physical-device acceptance is still outstanding.
 - Browser credentials are memory-only. Browser gallery/simulated-camera and network-disconnection tests do not prove physical-phone behaviour.
 
 ## Workflow coverage
@@ -106,3 +106,6 @@ Required evidence/read-only acceptance — 11 September ~01:05–01:13: four iso
 
 
 Final packaging failure/repair — 11 September ~03:17: build 8 ERRORED in the Android Kotlin classpath snapshot tool with a Java map ClassCastException. Build 7 remains the finished fallback. Separate missing direct expo-font peer fixed by explicitly pinning the existing 57.0.3 version. Local dependencies restored to their original isolated layout after interrupted hoisted installs. All 201 tests, TypeScript and platform exports passed afterward; Expo Doctor 21/21 passed when npm was supplied to the diagnostic. Clean-cache replacement build still pending; do not label build 8 installable or the repaired source device-tested.
+
+
+Morning verification — 11 September 08:02 NZ: build 9 FINISHED, source a7eece9. Overnight automation paused; no further code/tests needed for this handover. Next evidence is the short Android device checklist above. Successful packaging is not store approval, production cutover or native camera/offline/push acceptance.
