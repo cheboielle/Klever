@@ -129,3 +129,6 @@ For browser visuals, export separately with `node node_modules/expo/bin/cli expo
 
 
 `scripts/browser-care-smoke.mjs` checks asset/staff gallery changes and details, technician issue/admin resolution and calendar compliance creation/renewal/archive/restore in isolated contexts. It uses the synthetic image tmp/browser-service/evidence.png produced by the service runner; run that fixture-producing check first if the file is missing. No real image or notification is used. It verifies new issues appear after queue sync without manual refresh. Clean exact tmp/browser-care-photos.json Storage paths, then browser-care-cleanup.sql rows and listed Auth users, verifying zero fixtures. This does not exercise Android/iOS gallery or keyboard behaviour.
+
+
+`scripts/browser-queue-smoke.mjs` checks stale offline meter conflicts, independent queue progress, technician review/correction, reassignment denial and deactivation wipe in isolated owner/technician browser contexts. It creates two disposable assets and uses browser network disconnection; it does not verify native restarts. Execute its exact tmp/browser-queue-cleanup.sql and delete listed Auth IDs, then verify zero fixtures. No images, email or real records are used.
