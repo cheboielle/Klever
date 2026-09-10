@@ -8,7 +8,7 @@ Updated 11 September 2026. This records proven coverage; Stage A and release acc
 - Latest hosted foundation smoke: 33 checks. Focused invitation delivery/Auth smoke: 10 checks, with all email transport intercepted.
 - 26 isolated browser acceptance scenarios passed across six runners: onboarding (5), service/photo/export (4), company tasks/reconnect (4), asset/staff/issues/compliance (5), queued reading/access changes (4), required evidence/read-only (4). The access runner was repeated after the relevant access-display fix and still passed; repeated runs are not counted as new coverage.
 - Disposable Auth users, businesses and uploaded photos were cleaned after testing and verified absent. Real owner records, archived QA evidence and the signed-in 8083 browser were preserved.
-- Android build 7 (6349d8e2-8eca-4334-8632-2bb51889b114) is FINISHED. Final build 8 (a5cf0c0b-528c-4c28-89b2-cbda04d9277a) has been submitted and adds the verified read-only display fix; initial status NEW. Verify FINISHED before installing. Neither status establishes device acceptance.
+- Android build 7 (6349d8e2-8eca-4334-8632-2bb51889b114) is FINISHED fallback. Build 8 failed in the Kotlin/Java build tools. Replacement build 9 (4e7c81d1-c841-4ef9-82e1-9d868d464e62) is submitted with a clean cache and explicit font dependency; initial NEW. The repaired source passes 201 tests, TypeScript/platform bundles and Expo Doctor 21/21. Verify FINISHED before installing; none of these results establishes device acceptance.
 - Browser credentials are memory-only. Browser gallery/simulated-camera and network-disconnection tests do not prove physical-phone behaviour.
 
 ## Workflow coverage
