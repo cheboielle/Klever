@@ -59,3 +59,15 @@ Observed issue: successful task sync left the submission screen showing only “
 QA data retained in archive: asset “QA ONLY — browser workflow edited”, serial “QA-20260910-BROWSER”, with one service schedule, one compliance date, one reading and one completed task. Preserved its test history; no real asset or staff record was edited. Do not delete real history or change tenant entitlement to remove this test evidence.
 
 Remaining UI coverage includes technician-role walkthrough, camera/file selection, all correction/restore screens, actual downloaded output inspection, and post-fix sync-message confirmation. Team invitation flow is still not built. This pass is substantial coverage, not an assertion that every option has been device-tested.
+
+## Overnight restore/correction pass — 10 September, 22:32–22:36
+
+Android build 5 (`5321b229-5f94-4bae-9599-b8e53dad0b63`) verified FINISHED. Browser remains signed in on build-4 export; post-fix sync messaging is still not UI/device verified.
+
+- Archived QA asset shows retained schedules/history, and operational save/add/correction controls are disabled.
+- Restore returned it to the current list at the original 1,250 km, with service/task/compliance history intact.
+- Downward reading correction to 1,245 km required explicit confirmation. Reopening showed the -5 km correction and reason, linked to the retained 1,250 km original.
+- Task correction calendar selected 11 September 2026. Confirm void stayed disabled until checked. Saving retained the completed checklist/notes, marked it voided with the reason, and reopening showed next due 11 September.
+- QA asset rearchived after checks. No real assets/staff/settings changed. No photos/notifications sent.
+
+These paths passed without code changes; no repeat automated suite was needed. Next independent construction: scoped secure staff invitation/onboarding. Remaining browser gaps include service/photo corrections and technician-role flows; actual phone capabilities remain unverified.
