@@ -1,7 +1,8 @@
 import {DateField} from './DateField';
 import {SelectField} from './SelectField';
 import {nativeInteraction} from './nativeInteraction';
-import {queueEntry,flushQueue} from './offlineSync';
+import {queueEntry,flushQueue,subscribeSynced} from './offlineSync';
+import {submissionFeedback} from './submissionFeedback';
 import React,{useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import * as Crypto from 'expo-crypto';
@@ -63,8 +64,8 @@ function TaskDetail({task,admin,writable,captureWritable,onBack,onEdit}:{task:Ta
  const [records,setRecords]=useState<History[]>([]),[historyLoading,setHistoryLoading]=useState(true),[viewPhoto,setViewPhoto]=useState<{id:string;uri:string}|null>(null);
  const [voiding,setVoiding]=useState<string|null>(null),[voidReason,setVoidReason]=useState(''),[voidDate,setVoidDate]=useState(task.today),[confirmed,setConfirmed]=useState(false);const voidId=useRef<string|null>(null);
  const pending=useRef<{id:string;capture:string;uri:string|null;notes:string;checked:string[]}|null>(null),frame=useRef<View|null>(null),files=useRef<string[]>([]),live=useRef(true);
- useEffect(()=>{live.current=true;void history();return()=>{live.current=false;files.current.forEach(deletePhoto);};},[task.id]);
- async function history(){setHistoryLoading(true);try{const rows=await rpc<History[]>('list_task_history',{p_task:task.id});if(live.current)setRecords(rows);}catch(e){if(live.current)setError(message(e));}finally{if(live.current)setHistoryLoading(false);}}
+ useEffect(()=>{live.current=true;const stop=subscribeSynced(()=>{if(pending.current)void history();});void history();return()=>{stop();live.current=false;files.current.forEach(deletePhoto);};},[task.id]);
+ async function history(){setHistoryLoading(true);try{const rows=await rpc<History[]>('list_task_history',{p_task:task.id});if(live.current){setRecords(rows);const feedback=submissionFeedback('task',pending.current?.id,rows);if(feedback)setResult(feedback);}}catch(e){if(live.current)setError(message(e));}finally{if(live.current)setHistoryLoading(false);}}
  async function pick(camera:boolean){if(busy)return;setBusy(true);setError('');try{
   if(camera&&Platform.OS!=='web'){const permission=await nativeInteraction(()=>ImagePicker.requestCameraPermissionsAsync());if(!permission.granted)throw Error('Allow camera access in your phone settings, or choose a photo.');}
   const options:ImagePicker.ImagePickerOptions={mediaTypes:['images'],quality:.8,allowsMultipleSelection:false};

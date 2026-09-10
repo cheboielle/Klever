@@ -1,7 +1,8 @@
 import {DateField} from './DateField';
 import {nativeInteraction} from './nativeInteraction';
 import {currentOffline} from './offlineStore';
-import {queueEntry,flushQueue} from './offlineSync';
+import {queueEntry,flushQueue,subscribeSynced} from './offlineSync';
+import {submissionFeedback} from './submissionFeedback';
 import React,{useEffect,useRef,useState} from 'react';
 import {Image,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import {CameraView,useCameraPermissions} from 'expo-camera';
@@ -21,6 +22,12 @@ export function ServiceCompletion({asset,service,admin,writable,onSaved,onCancel
   const [cost,setCost]=useState(''),[notes,setNotes]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[result,setResult]=useState('');
   const camera=useRef<CameraView|null>(null),frame=useRef<View|null>(null),submission=useRef<{id:string;uri:string;reading:number}|null>(null),files=useRef<string[]>([]);
   useEffect(()=>()=>{for(const file of files.current)deletePhoto(file);},[]);
+  useEffect(()=>{let live=true;const stop=subscribeSynced(()=>{
+    const id=submission.current?.id;if(!id)return;
+    void rpc<History[]>('list_service_history',{p_asset:asset.id,p_service:service.id}).then(rows=>{
+      const feedback=submissionFeedback('service',id,rows);if(live&&feedback)setResult(feedback);
+    }).catch(()=>{}); // Keep the honest queued message if receipt verification is unavailable.
+  });return()=>{live=false;stop();};},[asset.id,service.id]);
   async function capture(){
     if(!camera.current||busy||!ready)return;setBusy(true);setError('');
     try{const capture=new Date().toISOString();const image=await camera.current.takePictureAsync({quality:.9});if(!image)throw Error('No photo was captured. Try again.');files.current.push(image.uri);setImageReady(false);setPhoto({...image,capture});submission.current=null;setCameraOpen(false);}

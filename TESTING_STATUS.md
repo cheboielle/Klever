@@ -4,11 +4,11 @@ Updated 10 September 2026. This is a coverage record, not a claim that the app i
 
 ## Latest results
 
-- 177 automated checks passed across 13 files, including 126 database/permission checks.
+- 179 automated checks passed across 14 files, including 126 database/permission checks.
 - The 126 database checks passed again after extending the hosted test script.
 - 32 checks against the actual development Auth, database, photo storage and export endpoints passed with disposable businesses/users/photos. No customer notifications sent. Cleanup independently verified zero remaining test businesses, users or photos.
 - Android version 0.1.0 (4), build `59ce0345-3a46-4b8c-b59d-b83290dfccdc`, verified FINISHED. This confirms packaging, not phone acceptance.
-- Browser preview loads the sign-in form. Authenticated screen walkthrough awaits owner sign-in at http://127.0.0.1:8083/ . Preview uses the current exported build; browser sessions are intentionally memory-only.
+- Owner signed in and the browser walkthrough below passed on the build-4 export at http://127.0.0.1:8083/. The sync-feedback fix is separately unit-tested and bundled; it has not yet been retested in a signed-in UI. Browser sessions are intentionally memory-only.
 
 ## Workflow coverage
 
@@ -38,3 +38,24 @@ Record actual outcomes per device. Browser results do not substitute for camera,
 ## Known incomplete work
 
 Team invitation/onboarding is not built. Live notification delivery, legacy migration, offsite backup/hosted recovery proof and release gates remain recorded in BUILD_STATUS.md. The full visual redesign follows functional acceptance. Do not mark these as passed because related database tests pass.
+
+## Signed-in browser pass — 10 September, evening
+
+Passed through actual UI controls on the owner account:
+
+- Top-right menu opens and navigates to Settings; primary tabs switch pages.
+- Reminder half-hour selection works; unsaved change discarded without changing business settings.
+- Team photo and persisted name/phone/contact email/title load; edit form opens. No real staff details changed.
+- Created a labelled QA vehicle at 1,240 km, reopened it, renamed it, and retained the reading/unit.
+- Saved an asset-only Both service at 100 km / 30 days with a 1,200 km baseline and calendar date 10 September 2026. Displayed 60 km remaining and due 10 October. Logged 1,250 km; reopened to verify +10 km history and 50 km remaining.
+- Calendar month/year controls changed to February 2027, correctly offered 28 days, selected 28 February and saved compliance with that exact date.
+- Created a monthly asset task with checklist/required notes. Submission rejected each missing requirement, then saved a complete entry; reopening showed next due 10 October 2026.
+- Company task form exposes shared/per-technician modes and custom-day interval. Inspected and cancelled without adding company-wide test work.
+- Changed only the QA asset to Workshop; counts and workshop tile filter matched. Archived it and verified it appears in the archive while active counts returned to the three existing assets.
+- Settings asset-register CSV export returned “Export prepared.” File contents/download location were not separately inspected in this UI pass; actual export endpoints were covered by the earlier hosted checks.
+
+Observed issue: successful task sync left the submission screen showing only “saved on this device” and stale completion history. Fixed task history refresh after sync and exact-submission receipt messaging for tasks/services. A service pending correction explicitly still requires admin review. Added tests preventing unrelated/missing history from being presented as successful sync. No schema changes.
+
+QA data retained in archive: asset “QA ONLY — browser workflow edited”, serial “QA-20260910-BROWSER”, with one service schedule, one compliance date, one reading and one completed task. Preserved its test history; no real asset or staff record was edited. Do not delete real history or change tenant entitlement to remove this test evidence.
+
+Remaining UI coverage includes technician-role walkthrough, camera/file selection, all correction/restore screens, actual downloaded output inspection, and post-fix sync-message confirmation. Team invitation flow is still not built. This pass is substantial coverage, not an assertion that every option has been device-tested.
