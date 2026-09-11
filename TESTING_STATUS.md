@@ -4,6 +4,8 @@ Updated 12 September 2026. This records proven coverage; Stage A and release acc
 
 ## Latest results
 
+- Android branding build 11 submitted successfully at 22:32:54 UTC 11 September, source fe3e0096d4191a107f6fb1385a6bc6f1b5ace65b, ID 5f3fc26f-5aa3-4b04-804c-d1f95b44ba25. Initial status NEW; not yet verified installable. Page: https://expo.dev/accounts/klever-nz/projects/klever-nz/builds/5f3fc26f-5aa3-4b04-804c-d1f95b44ba25 . Includes icons, shared themes/logo and invitation-photo setup. Physical-device acceptance is pending.
+
 - Branding slice: 217/217 automated checks across 17 files, including 146 database/permission checks and five palette readability checks; final TypeScript and web/Android/iOS export passed. Migration 024 applied to the authorized development project. No new APK verified yet; build 10 remains the earlier installable version.
 - 28 distinct browser scenarios passed against branding preview 8087: invitations/photo acceptance (5), care including shared branding and logo lifecycle (7), tasks/reconnect (4), queued reading/access (4), services/photos/exports (4), evidence/read-only (4). The two branding cases were rerun after the final logo revision fix; simulated browser foreground refreshed a technician's logo without sign-out. This is not native-device proof. Early test failures were corrected by waiting for initial equipment loading, modal dismissal and the new refresh request. All exact fixtures cleaned; six-manifest verification returned zero remaining test tenants/users. Original owner records preserved.
 
