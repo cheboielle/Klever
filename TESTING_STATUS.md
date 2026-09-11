@@ -4,6 +4,8 @@ Updated 12 September 2026. This records proven coverage; Stage A and release acc
 
 ## Latest results
 
+- Android branding build 11 verified FINISHED on 12 September at 10:51 NZ. Provider completion 22:44:31 UTC 11 September; APK present, version 0.1.0 (11), source fe3e0096d4191a107f6fb1385a6bc6f1b5ace65b. Install as an update from https://expo.dev/accounts/klever-nz/projects/klever-nz/builds/5f3fc26f-5aa3-4b04-804c-d1f95b44ba25 . Verify on phone: tile icons; Business settings → Colours & logo; logo replace/remove and foreground refresh on another account; optional photo while adding a team member. This is a completed internal build, not physical-device testing or store release. No tests rerun for this documentation-only checkpoint.
+
 - Android branding build 11 submitted successfully at 22:32:54 UTC 11 September, source fe3e0096d4191a107f6fb1385a6bc6f1b5ace65b, ID 5f3fc26f-5aa3-4b04-804c-d1f95b44ba25. Initial status NEW; not yet verified installable. Page: https://expo.dev/accounts/klever-nz/projects/klever-nz/builds/5f3fc26f-5aa3-4b04-804c-d1f95b44ba25 . Includes icons, shared themes/logo and invitation-photo setup. Physical-device acceptance is pending.
 
 - Branding slice: 217/217 automated checks across 17 files, including 146 database/permission checks and five palette readability checks; final TypeScript and web/Android/iOS export passed. Migration 024 applied to the authorized development project. No new APK verified yet; build 10 remains the earlier installable version.
