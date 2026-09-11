@@ -1,6 +1,12 @@
 import {expect,it,vi} from 'vitest';
 import {notificationTarget} from '../apps/mobile/src/notificationTarget';
 const id='00000000-0000-4000-8000-000000000001';
+it('requires current asset access for exact service destinations',async()=>{
+ const asset={id,archived:false} as any;
+ expect(await notificationTarget({kind:'service_due',recordId:id,assetId:id},async()=>({allowed:true}),async()=>asset)).toEqual({kind:'service',serviceId:id,asset});
+ expect(await notificationTarget({kind:'service_due',recordId:id},async()=>({allowed:true}),vi.fn())).toEqual({kind:'unavailable'});
+ expect(await notificationTarget({kind:'service_due',recordId:id,assetId:id},async()=>({allowed:true}),async()=>null)).toEqual({kind:'unavailable'});
+});
 it('routes identified company and asset tasks while rejecting withdrawn asset access and malformed IDs',async()=>{
  const asset={id,archived:false} as any;
  expect(await notificationTarget({kind:'task_due',recordId:id},async()=>({allowed:true}),vi.fn())).toEqual({kind:'task',taskId:id,asset:null});

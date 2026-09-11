@@ -18,7 +18,7 @@ function Choices<T extends string>({options,value,set}:{options:{value:T;label:s
 }
 const format=(n:number)=>Number(n).toLocaleString();
 
-export function ServicePanel({asset,admin,writable,captureWritable=writable}:{asset:Asset;admin:boolean;writable:boolean;captureWritable?:boolean}){
+export function ServicePanel({asset,admin,writable,captureWritable=writable,initialServiceId}:{asset:Asset;admin:boolean;writable:boolean;captureWritable?:boolean;initialServiceId?:string}){
   const [items,setItems]=useState<Schedule[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false);
   const [past,setPast]=useState<{id:string;config:Config}[]>([]);
   const [completing,setCompleting]=useState<Schedule|null>(null),[historyKey,setHistoryKey]=useState(0);
@@ -26,6 +26,8 @@ export function ServicePanel({asset,admin,writable,captureWritable=writable}:{as
   const [name,setName]=useState(''),[instructions,setInstructions]=useState(''),[mode,setMode]=useState<Config['mode']>('meter'),[scope,setScope]=useState<'asset'|'type'>('asset');
   const [interval,setInterval]=useState(''),[days,setDays]=useState('30'),[baseline,setBaseline]=useState(''),[date,setDate]=useState(''),[kind,setKind]=useState<Schedule['baseline_kind']>('unknown');
   const request=useRef(0);
+  const handledAlert=useRef<string|undefined>(undefined);
+  useEffect(()=>{if(!initialServiceId||loading||error||handledAlert.current===initialServiceId)return;handledAlert.current=initialServiceId;const service=items.find(item=>item.id===initialServiceId);if(!service)setError('This service is no longer available for this asset.');else if(!service.due||service.unit_mismatch||service.missing_baseline){setExpanded(service.id);setError('This service is not currently due or needs its schedule checked. The current details are shown below.');}else setCompleting(service);},[initialServiceId,loading,error,items]);
   async function load(){
     const ticket=++request.current;setLoading(true);
     try{const [rows,retained]=await Promise.all([rpc<Schedule[]>('list_asset_services',{p_asset:asset.id}),rpc<{id:string;config:Config}[]>('list_past_asset_services',{p_asset:asset.id})]);if(ticket===request.current){setItems(rows);setPast(retained);setError('');}}

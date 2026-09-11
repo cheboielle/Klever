@@ -66,6 +66,7 @@ function Workspace(){
   const [statusFilter,setStatusFilter]=useState<AssetStatus|'all'>('all');
   const [menuOpen,setMenuOpen]=useState(false);
   const [quickReading,setQuickReading]=useState(false);
+  const [serviceAlert,setServiceAlert]=useState<string|null>(null);
   const [taskAlert,setTaskAlert]=useState<{id:string;asset:Asset|null}|null>(null);
   const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newName,setNewName]=useState(''),[serial,setSerial]=useState(''),[initialHours,setInitialHours]=useState('0'),[typeId,setTypeId]=useState(''),[newType,setNewType]=useState('');
   const [editingAsset,setEditingAsset]=useState<Asset|null>(null),[editingMember,setEditingMember]=useState<Member|null>(null);
@@ -86,7 +87,7 @@ function Workspace(){
   const captureWritable=Boolean(offlineState&&offlineEntryAllowed(offlineState));
 
   const clearData=useCallback(()=>{
-    setTaskAlert(null);setQuickReading(false);
+    setTaskAlert(null);setQuickReading(false);setServiceAlert(null);
     joiningRef.current=false;setJoining(false);setInvitationMode(false);
     generation.current++;detailGeneration.current++;setAccess(null);setOwnerId(null);setAssets([]);setMembers([]);setTypes([]);setSelected(null);setLogs([]);setAssignmentIds([]);setShowAdd(false);setEditingAsset(null);setEditingMember(null);setMeterChanges([]);setHours('');setReason('');setPage('assets');setMenuOpen(false);setShowArchived(false);setOnline(false);pendingReading.current=null;
   },[]);
@@ -183,11 +184,13 @@ function Workspace(){
     if(target.kind==='denied'){await signOut();return true;}
     if(target.kind==='asset'||target.kind==='reading'){setPage('assets');await openAsset(target.asset,target.kind==='reading');}
     else if(target.kind==='task'){setSelected(null);setTaskAlert({id:target.taskId,asset:target.asset});setPage('tasks');}
+    else if(target.kind==='service'){setPage('assets');await openAsset(target.asset,false,target.serviceId);}
     else if(target.kind==='tasks'||target.kind==='assets'){setTaskAlert(null);setSelected(null);setPage(target.kind);}
     else if(target.kind==='unavailable'){setSelected(null);setPage('assets');setError('This alert’s asset is no longer available to you.');}
     return true;
   }
-  async function openAsset(asset:Asset,readingOnly=false){
+  async function openAsset(asset:Asset,readingOnly=false,serviceId:string|null=null){
+    setServiceAlert(serviceId);
     setQuickReading(readingOnly);
     const ticket=++detailGeneration.current;
     setSelected(asset);setHours('');setReason('');setNextStatus(asset.status);setLogs([]);setMeterChanges([]);setAssignmentIds([]);pendingReading.current=null;
@@ -281,7 +284,8 @@ function Workspace(){
     <Modal visible={Boolean(editingMember)} animationType="slide" onRequestClose={()=>setEditingMember(null)}><View style={s.root}><FormScroll contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.title}>Edit team member</Text><Pressable onPress={()=>setEditingMember(null)}><Text style={s.link}>Close</Text></Pressable></View><Field label="Name" value={memberName} onChangeText={setMemberName}/><Field label="Phone number" value={memberPhone} onChangeText={setMemberPhone}/><Field label="Email" value={memberEmail} onChangeText={setMemberEmail}/><Text style={s.small}>Contact email only. This does not change their sign-in email.</Text><Field label="Job title" value={memberTitle} onChangeText={setMemberTitle}/>{error?<Notice text={error}/>:null}<Button title={busy?'Saving…':'Save details'} disabled={busy||!writable||!memberName.trim()} onPress={()=>void run(async()=>{await rpc('save_staff_details',{p_user:editingMember!.user_id,p_name:memberName.trim(),p_phone:memberPhone.trim(),p_contact_email:memberEmail.trim(),p_job_title:memberTitle.trim()});setEditingMember(null);await refresh();})}/></FormScroll></View></Modal>
 
     <Modal visible={Boolean(selected)} animationType="slide" onRequestClose={()=>setSelected(null)}><View style={s.root}><FormScroll contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.eyebrow}>{quickReading?"RECORD READING":"ASSET DETAILS"}</Text><Pressable onPress={()=>setSelected(null)}><Text style={s.link}>Close</Text></Pressable></View>
-      {selected?.archived?<Notice text="Archived asset — history is available. Restore it to resume work."/>:null}{selected&&!quickReading?<ProfilePhoto key={selected.id} kind="asset" target={selected.id} editable={false} writable={assetWritable} onChanged={()=>setPhotoVersion(v=>v+1)}/>:null}<Text style={s.title}>{selected?.name}</Text><Text style={s.muted}>{selected?.serial||'No serial recorded'}</Text><View style={s.card}><Text style={s.statNumber}>{Number(selected?.current_hours??0).toLocaleString()} <Text style={s.subtitle}>{selected?.meter_unit}</Text></Text><Text style={s.badge}>{selected?.status}</Text></View>
+      {selected?.archived?<Notice text="Archived asset — history is available. Restore it to resume work."/>:null}{selected&&!quickReading?<ProfilePhoto key={selected.id+":"+photoVersion} kind="asset" target={selected.id} editable={false} writable={assetWritable} onChanged={()=>setPhotoVersion(v=>v+1)}/>:null}<Text style={s.title}>{selected?.name}</Text><Text style={s.muted}>{selected?.serial||'No serial recorded'}</Text><View style={s.card}><Text style={s.statNumber}>{Number(selected?.current_hours??0).toLocaleString()} <Text style={s.subtitle}>{selected?.meter_unit}</Text></Text><Text style={s.badge}>{selected?.status}</Text></View>
+      {serviceAlert&&selected?<ServicePanel key={selected.id+serviceAlert} asset={selected} initialServiceId={serviceAlert} admin={Boolean(admin)} writable={assetWritable} captureWritable={captureWritable&&!selected.archived}/>:<>
       <DetailTile key={(selected?.id??"")+":reading"} title="Log a reading" description="Record the current hours or kilometres" initiallyOpen><Field label={selected?.meter_unit==='km'?'Current odometer reading (km)':'Current meter reading (hours)'} value={hours} numeric onChangeText={v=>{pendingReading.current=null;setHours(v);}}/><Button title={busy?'Saving…':'Save reading'} onPress={()=>void saveReading()} disabled={busy||(!captureWritable||Boolean(selected?.archived))||!hours.trim()}/></DetailTile>
       {error?<Notice text={error}/>:null}
       {!quickReading?<><>{selected?<View style={{gap:24}}><DetailTile title="Services" description="Due maintenance and service records"><ServicePanel key={selected.id+scheduleVersion} asset={selected} admin={Boolean(admin)} writable={assetWritable} captureWritable={captureWritable&&!selected?.archived}/></DetailTile><DetailTile title="Tasks" description="Checklists and recurring work"><TaskPanel key={selected.id+scheduleVersion} asset={selected} assets={activeAssets} admin={Boolean(admin)} writable={assetWritable} captureWritable={captureWritable&&!selected?.archived}/></DetailTile></View>:null}</>
@@ -297,6 +301,7 @@ function Workspace(){
       <DetailTile key={(selected?.id??"")+":history"} title="Reading history" description="Previous readings and recorded corrections">      {meterChanges.length?<><Text style={s.heading}>Meter unit corrections</Text>{meterChanges.map(change=><View style={s.card} key={change.id}><Text style={s.label}>{change.details.previous_reading} {change.details.previous_unit} → {change.details.reading} {change.details.meter_unit}</Text><Text style={s.muted}>{change.reason}</Text><Text style={s.small}>{new Date(change.server_time).toLocaleString()}</Text></View>)}</>:null}
       <Text style={s.heading}>{admin?'Recent readings':'Your recent readings'}</Text>{logs.length?logs.map(log=><View style={s.card} key={log.id}><View style={s.sectionRow}><Text style={s.assetName}>{Number(log.value).toLocaleString()} {log.meter_unit}</Text><Text style={s.small}>{Number(log.delta)>=0?'+':''}{Number(log.delta)} {log.meter_unit}</Text></View><Text style={s.small}>Captured {new Date(log.capture_time).toLocaleString()}</Text><Text style={s.small}>Received {new Date(log.server_time).toLocaleString()}</Text>{log.correction_of||log.correction_of_setup?<Text style={s.small}>{log.correction_of_setup?'Correction of a setup reading':'Correction of an earlier reading'} — original retained</Text>:null}{log.reason?<Text style={s.muted}>{log.reason}</Text>:null}</View>):<Text style={s.muted}>No readings recorded yet.</Text>}</DetailTile>
       </>:null}
+      </>}
     </FormScroll></View></Modal>
     <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={()=>setMenuOpen(false)}><View style={{flex:1,backgroundColor:'#0006',justifyContent:'flex-start'}}><Pressable accessibilityLabel="Dismiss menu" onPress={()=>setMenuOpen(false)} style={StyleSheet.absoluteFill}/><SafeAreaView style={{margin:16,padding:20,gap:16,backgroundColor:colors.paper,borderRadius:16}}><View style={s.sectionRow}><Text style={s.heading}>Menu</Text><Button title="Close" secondary onPress={()=>setMenuOpen(false)}/></View><Button title="Settings" secondary onPress={()=>{setSelected(null);setPage('settings');setMenuOpen(false);}}/><Button title="Sign out" secondary onPress={()=>{setMenuOpen(false);void signOut();}}/></SafeAreaView></View></Modal>
   </SafeAreaView>;
