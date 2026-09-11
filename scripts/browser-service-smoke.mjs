@@ -22,8 +22,8 @@ async function account(label){
  const user=await request('/auth/v1/admin/users',{body:{email,password,email_confirm:true}});users.push(user.id);
  const session=await request('/auth/v1/token?grant_type=password',{token:pub,body:{email,password}});secrets.push(password,session.access_token,session.refresh_token);return {id:user.id,email,password,token:session.access_token};
 }
-async function login(page,user){await page.goto('http://127.0.0.1:8085/');await field(page,'Email').fill(user.email);await field(page,'Password').fill(user.password);await button(page,'Sign in').click();await page.getByRole('tab',{name:/Assets/}).waitFor();}
-async function openService(page){await page.getByRole('button',{name:/QA service asset/}).click();await page.getByRole('button',{name:/QA oil service/}).click();await button(page,'Record completed service').waitFor();}
+async function login(page,user){await page.goto(process.env.KLEVER_PREVIEW_URL??'http://127.0.0.1:8086/');await field(page,'Email').fill(user.email);await field(page,'Password').fill(user.password);await button(page,'Sign in').click();await page.getByRole('tab',{name:/Assets/}).waitFor();}
+async function openService(page){await page.getByRole('button').filter({has:page.getByText('QA service asset',{exact:true})}).click();await button(page,'Services').click();await page.getByRole('button',{name:/QA oil service/}).click();await button(page,'Record completed service').waitFor();}
 async function complete(page,admin){
  await button(page,'Record completed service').click();assert.equal(await button(page,'Save completed service').isDisabled(),true);
  if(admin){await field(page,'Service cost').fill('125.50');await field(page,'Mechanic notes').fill('PRIVATE TEST mechanic note');}
@@ -62,7 +62,7 @@ try{
  await ownerPage.getByText('70 hours remaining · due at 1,310 hours',{exact:true}).waitFor();
  await ownerPage.getByText('QA Owner · 1240 hours',{exact:true}).locator('..').getByRole('button',{name:'View evidence photo',exact:true}).click();await ownerPage.getByLabel('Service evidence photo',{exact:true}).waitFor();
  pass('Service void requires confirmation, preserves original photo/cost and recalculates the explicitly chosen baseline');
- phase='download and inspect actual CSV/PDF';await ownerPage.getByRole('button',{name:/Export this asset/}).click();
+ phase='download and inspect actual CSV/PDF';await button(ownerPage,'Manage asset').click();await button(ownerPage,'Exports & archive').click();await ownerPage.getByRole('button',{name:/Export this asset/}).click();
  for(const format of ['CSV','PDF']){
   const pending=ownerPage.waitForEvent('download');await button(ownerPage,format).nth(2).click();const download=await pending;await download.saveAs('tmp/browser-service/maintenance.'+format.toLowerCase());
  }
