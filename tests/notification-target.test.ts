@@ -1,6 +1,12 @@
 import {expect,it,vi} from 'vitest';
 import {notificationTarget} from '../apps/mobile/src/notificationTarget';
 const id='00000000-0000-4000-8000-000000000001';
+it('routes meter reminders to entry only after current asset access is confirmed',async()=>{
+ const asset={id,archived:false,meter_unit:'km'} as any;
+ expect(await notificationTarget({kind:'hour_log',assetId:id},async()=>({allowed:true}),async()=>asset)).toEqual({kind:'reading',asset});
+ expect(await notificationTarget({kind:'hour_log',assetId:id},async()=>({allowed:true}),async()=>null)).toEqual({kind:'unavailable'});
+ const load=vi.fn();expect(await notificationTarget({kind:'hour_log',assetId:id},async()=>({allowed:false}),load)).toEqual({kind:'denied'});expect(load).not.toHaveBeenCalled();
+});
 it('checks current access before reading notification assets',async()=>{
  const loadAsset=vi.fn();expect(await notificationTarget({assetId:id},async()=>({allowed:false}),loadAsset)).toEqual({kind:'denied'});expect(loadAsset).not.toHaveBeenCalled();
 });

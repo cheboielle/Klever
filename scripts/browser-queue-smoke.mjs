@@ -20,10 +20,10 @@ async function account(label){
  const user=await request('/auth/v1/admin/users',{body:{email,password,email_confirm:true}});users.push(user.id);
  const session=await request('/auth/v1/token?grant_type=password',{token:pub,body:{email,password}});secrets.push(password,session.access_token,session.refresh_token);return {id:user.id,email,password,token:session.access_token};
 }
-async function login(page,user){await page.goto('http://127.0.0.1:8085/');await field(page,'Email').fill(user.email);await field(page,'Password').fill(user.password);await button(page,'Sign in').click();await page.getByRole('tab',{name:/Assets/}).waitFor();}
+async function login(page,user){await page.goto(process.env.KLEVER_PREVIEW_URL??'http://127.0.0.1:8086/');await field(page,'Email').fill(user.email);await field(page,'Password').fill(user.password);await button(page,'Sign in').click();await page.getByRole('tab',{name:/Assets/}).waitFor();}
 
 
-async function openAsset(page,name){await page.getByRole('button',{name:new RegExp(name)}).click();await button(page,'Save reading').waitFor();}
+async function openAsset(page,name){await button(page,`Log hours for ${name}`).click();await button(page,'Save reading').waitFor();assert.equal(await button(page,'Manage asset').count(),0);assert.equal(await button(page,'Services').count(),0);}
 async function reading(page,name,value){await openAsset(page,name);await field(page,'Current meter reading (hours)').fill(String(value));await button(page,'Save reading').click();await button(page,'Save reading').waitFor({state:'detached'});}
 async function until(fn){for(let i=0;i<30;i++){if(await fn())return;await new Promise(r=>setTimeout(r,500));}throw Error('Expected server state did not arrive');}
 try{

@@ -1,5 +1,5 @@
 import type {Access,Asset} from '@klever/domain';
-type Target={kind:'ignored'|'denied'|'tasks'|'assets'|'unavailable'}|{kind:'asset';asset:Asset};
+type Target={kind:'ignored'|'denied'|'tasks'|'assets'|'unavailable'}|{kind:'asset'|'reading';asset:Asset};
 export async function notificationTarget(data:unknown,loadAccess:()=>Promise<Access>,loadAsset:(id:string)=>Promise<Asset|null>):Promise<Target>{
  if(!data||typeof data!=='object'||Array.isArray(data))return {kind:'ignored'};
  const payload=data as Record<string,unknown>,assetId=payload.assetId;
@@ -8,6 +8,6 @@ export async function notificationTarget(data:unknown,loadAccess:()=>Promise<Acc
  // Notification text is a hint only. Current server access and asset rows decide what opens.
  const access=await loadAccess();
  if(!access.allowed)return {kind:'denied'};
- if(assetId){const asset=await loadAsset(assetId as string);return asset&&!asset.archived?{kind:'asset',asset}:{kind:'unavailable'};}
+ if(assetId){const asset=await loadAsset(assetId as string);return asset&&!asset.archived?{kind:payload.kind==='hour_log'?'reading':'asset',asset}:{kind:'unavailable'};}
  return {kind:payload.kind==='task_due'?'tasks':'assets'};
 }
