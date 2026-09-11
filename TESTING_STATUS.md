@@ -4,11 +4,11 @@ Updated 11 September 2026. This records proven coverage; Stage A and release acc
 
 ## Latest results
 
-- 201 automated checks across 16 files passed, including 139 database/permission checks; mobile TypeScript and web/Android/iOS bundles passed.
+- 205 automated checks across 16 files passed, including 139 database/permission checks; mobile TypeScript and web/Android/iOS bundles passed. Expo Doctor passes 21/21 with the new pinned native slider.
 - Latest hosted foundation smoke: 33 checks. Focused invitation delivery/Auth smoke: 10 checks, with all email transport intercepted.
-- 26 isolated browser acceptance scenarios passed across six runners: onboarding (5), service/photo/export (4), company tasks/reconnect (4), asset/staff/issues/compliance (5), queued reading/access changes (4), required evidence/read-only (4). The access runner was repeated after the relevant access-display fix and still passed; repeated runs are not counted as new coverage.
+- All 26 isolated browser acceptance scenarios were rerun during the approved UX rollout against the updated 8086 preview, with explicit grouped navigation: onboarding (5), service/photo/export (4), company tasks/reconnect (4), asset/staff/issues/compliance (5), queued reading/access changes using quick entry (4), required evidence/read-only (4). These are regression runs, not 26 additional scenarios. Native task/service notification opening is covered by route/provider tests but still needs actual phone taps.
 - Disposable Auth users, businesses and uploaded photos were cleaned after testing and verified absent. Real owner records, archived QA evidence and the signed-in 8083 browser were preserved.
-- Latest Android build 9 (4e7c81d1-c841-4ef9-82e1-9d868d464e62), version 0.1.0 (9), verified FINISHED at 08:02 NZ 11 September. Install as an update. Build 8 failed in Kotlin/Java build tooling; the clean-cache replacement with explicit font dependency succeeded. Repaired source passes 201 tests, TypeScript/platform bundles and Expo Doctor 21/21. Physical-device acceptance is still outstanding.
+- Android UX review build 10 (3750c600-056f-47fd-9795-da16b240d4c0), version 0.1.0 (10), source 33c8e13, submitted and last verified IN_PROGRESS at 13:35 NZ. Not yet confirmed installable. Build 9 remains the earlier FINISHED fallback and does not contain the UX changes. Physical-device acceptance remains outstanding.
 - Browser credentials are memory-only. Browser gallery/simulated-camera and network-disconnection tests do not prove physical-phone behaviour.
 
 ## Workflow coverage
