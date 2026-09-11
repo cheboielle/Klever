@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {ActivityIndicator,Pressable,Text,View} from 'react-native';
+import {ActivityIndicator,Pressable,Text,View} from './brandUI';
 import type {Asset} from '@klever/domain';
 import {rpc} from './client';
 type Family={family_key:string;family_name:string;engine_maintenance_note?:string;service_types:{name:string;trigger_mode:string;interval_hours:number|null;interval_days:number|null;instructions:string;recommended_note:string}[]};

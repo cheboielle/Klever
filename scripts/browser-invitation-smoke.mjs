@@ -39,6 +39,8 @@ async function run(){
   await ownerPage.getByRole('tab',{name:/Team/}).click();
   async function invite(name,email){
    await button(ownerPage,'Add team member').click();await field(ownerPage,'Team member name').fill(name);await field(ownerPage,'Invitation email').fill(email);
+   await button(ownerPage,'Continue to photo').click();
+   if(name==='QA Recipient'){await button(ownerPage,'Add photo').click();const chooser=ownerPage.waitForEvent('filechooser');await button(ownerPage,'Choose from gallery').click();await (await chooser).setFiles('tmp/browser-service/evidence.png');await ownerPage.getByRole('button',{name:'Save photo',exact:true,disabled:false}).waitFor();await button(ownerPage,'Save photo').click();await ownerPage.getByRole('button',{name:'Change photo',exact:true,disabled:false}).waitFor();}
    await button(ownerPage,'Save and send invitation').click();
    await ownerPage.getByText('Invitation saved. No email was sent because invitation email delivery is not set up yet.',{exact:true}).waitFor();
   }
@@ -61,6 +63,8 @@ async function run(){
   phase='owner sees accepted profile';await login(ownerPage,ownerEmail,ownerPassword);await ownerPage.getByRole('tab',{name:/Team/}).click();
   await button(ownerPage,'QA Recipient').click();await ownerPage.getByText('021-000-QA',{exact:true}).waitFor();await ownerPage.getByText('Test technician',{exact:true}).waitFor();
   assert.equal(await button(ownerPage,'Cancel invitation for QA Recipient').count(),0);
+  await ownerPage.getByRole('img',{name:'Profile picture',exact:true}).waitFor();
+  assert.ok((await rpc('get_profile_photo',{p_kind:'member',p_target:proof.id},session.access_token)).id);
   await ownerPage.screenshot({path:'tmp/browser-invitation/team.png',fullPage:true});pass('Owner sees the accepted profile details and no pending invitation');
   phase='owner deactivates synthetic technician';await button(ownerPage,'Access & assignments').click();await button(ownerPage,'Deactivate').click();await button(ownerPage,'Confirm deactivate').click();await ownerPage.getByText('Inactive',{exact:true}).waitFor();
   phase='deactivated technician sign-in is rejected';await recipientPage.goto(preview);await field(recipientPage,'Email').fill(recipientEmail);await field(recipientPage,'Password').fill(recipientPassword);await button(recipientPage,'Sign in').click();
@@ -74,8 +78,10 @@ async function run(){
  }finally{
   if(browser)await browser.close();mkdirSync('tmp',{recursive:true});
   const ids=tenants.map(id=>{assert.ok(/^[a-f0-9-]{36}$/.test(id));return `'${id}'`;}).join(',');
+  const photos=[];for(const tenant of tenants){for(const row of await request(`/rest/v1/profile_photo_uploads?tenant_id=eq.${tenant}&select=object_path`,{method:'GET'}))photos.push(row.object_path);}
+  writeFileSync('tmp/browser-invitation-photos.json',JSON.stringify(photos));
   writeFileSync('tmp/browser-invitation-users.json',JSON.stringify([...users]));
-  if(ids)writeFileSync('tmp/browser-invitation-cleanup.sql',`begin;\nupdate public.tenants set write_until=now()-interval '1 day' where id in (${ids});\ndelete from public.staff_invitations where tenant_id in (${ids});\ndelete from public.notification_rules where tenant_id in (${ids});\ndelete from public.memberships where tenant_id in (${ids});\ndelete from public.tenants where id in (${ids});\ncommit;`);
+  if(ids)writeFileSync('tmp/browser-invitation-cleanup.sql',`begin;\nupdate public.tenants set write_until=now()-interval '1 day' where id in (${ids});\ndelete from public.profile_photos where tenant_id in (${ids});\ndelete from public.profile_photo_uploads where tenant_id in (${ids});\ndelete from public.staff_invitations where tenant_id in (${ids});\ndelete from public.notification_rules where tenant_id in (${ids});\ndelete from public.memberships where tenant_id in (${ids});\ndelete from public.tenants where id in (${ids});\ncommit;`);
   console.log('Exact browser test cleanup manifests written.');
  }
 }

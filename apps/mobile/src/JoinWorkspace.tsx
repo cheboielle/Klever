@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Text,View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {ActivityIndicator,Text,View} from './brandUI';
+import {SafeAreaView} from './brandUI';
 import {FormScroll} from './FormScroll';
 import {rpc,supabase} from './client';
 import {InvitationButton as Button,InvitationField as Field,invitationStyles as s} from './InvitationFields';

@@ -1,7 +1,9 @@
+import {BrandingSettings} from './BrandingSettings';
+import {DetailTile} from './DetailTile';
 import {SelectField} from './SelectField';
 import {FormScroll} from './FormScroll';
 import React,{useState} from 'react';
-import {Modal,Platform,Pressable,ScrollView,Text,TextInput} from 'react-native';
+import {Modal,Platform,Pressable,ScrollView,Text,TextInput} from './brandUI';
 import {rpc} from './client';
 type Settings={name:string;timezone:string;app_lock:boolean;currency:string;revision:number};
 function Button({label,onPress,disabled=false}:{label:string;onPress:()=>void;disabled?:boolean}){return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={{padding:13,borderRadius:10,backgroundColor:'#EAF0E7',opacity:disabled?.5:1}}><Text style={{color:'#153C32'}}>{label}</Text></Pressable>;}
@@ -19,7 +21,7 @@ export function BusinessSettings({writable,onSaved}:{writable:boolean;onSaved:()
  <Modal visible={open} animationType="slide" onRequestClose={()=>setOpen(false)}><FormScroll contentContainerStyle={{padding:24,paddingTop:50,gap:15,backgroundColor:'#F5F6F0'}} keyboardShouldPersistTaps="handled">
  <Button label="Close" onPress={()=>setOpen(false)}/><Text style={{fontSize:26,fontWeight:'700',color:'#153C32'}}>Business settings</Text>
  {message?<Text accessibilityLiveRegion="polite">{message}</Text>:null}{busy?<Text>Working…</Text>:null}
- {settings?<><Text>Business name</Text><TextInput accessibilityLabel="Business name" value={settings.name} onChangeText={name=>change({name})} editable={writable&&!busy} style={{padding:12,backgroundColor:'white'}}/>
+ {settings?<><DetailTile icon="color-palette-outline" title="Colours & logo" description="Make this workspace feel like your business"><BrandingSettings writable={writable} onSaved={onSaved}/></DetailTile><Text>Business name</Text><TextInput accessibilityLabel="Business name" value={settings.name} onChangeText={name=>change({name})} editable={writable&&!busy} style={{padding:12,backgroundColor:'white'}}/>
  <Text>Business timezone</Text><TextInput accessibilityLabel="Business timezone" autoCapitalize="none" value={settings.timezone} onChangeText={timezone=>change({timezone})} editable={writable&&!busy} style={{padding:12,backgroundColor:'white'}}/>
  <SelectField label="Currency for new service costs" value={settings.currency} options={['NZD','AUD','USD','CAD','GBP','EUR'].map(value=>({value,label:value}))} disabled={!writable||busy} onChange={currency=>change({currency})}/>
  <Text>Earlier costs keep their recorded currency. Amounts are never converted.</Text>

@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
-import {AppState,Pressable,Text,View} from 'react-native';
+import {AppState,Pressable,Text,View} from './brandUI';
 import * as Notifications from 'expo-notifications';
 import {registerPhoneAlerts} from './pushRegistration.native';
 Notifications.setNotificationHandler({handleNotification:async()=>({shouldShowBanner:true,shouldShowList:true,shouldPlaySound:true,shouldSetBadge:false})});

@@ -1,5 +1,5 @@
 import React,{useRef,useState} from 'react';
-import {Pressable,Text,TextInput,View} from 'react-native';
+import {Pressable,Text,TextInput,View} from './brandUI';
 import * as Crypto from 'expo-crypto';
 import type {Asset} from '@klever/domain';
 import {rpc} from './client';

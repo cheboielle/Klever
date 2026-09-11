@@ -1,6 +1,6 @@
 import {FormScroll} from './FormScroll';
 import React,{useState} from 'react';
-import {Modal,Pressable,ScrollView,Text,TextInput,View} from 'react-native';
+import {Modal,Pressable,ScrollView,Text,TextInput,View} from './brandUI';
 import {rpc} from './client';
 export function AssetTypeSettings({types,writable,onSaved}:{types:{id:string;name:string}[];writable:boolean;onSaved:()=>Promise<void>}){
  const [open,setOpen]=useState(false),[editing,setEditing]=useState<string|null>(null),[name,setName]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');

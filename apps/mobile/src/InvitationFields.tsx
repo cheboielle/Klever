@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Pressable,StyleSheet,Text,TextInput,View} from './brandUI';
 
 export const invitationStyles=StyleSheet.create({
  card:{padding:20,gap:14,borderRadius:18,backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#DFE5DC'},

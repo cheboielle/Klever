@@ -5,7 +5,7 @@ import {nativeInteraction} from './nativeInteraction';
 import {queueEntry,flushQueue,subscribeSynced} from './offlineSync';
 import {submissionFeedback} from './submissionFeedback';
 import React,{useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
+import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,TextInput,View} from './brandUI';
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import type {Asset} from '@klever/domain';

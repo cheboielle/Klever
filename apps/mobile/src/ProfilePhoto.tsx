@@ -1,18 +1,19 @@
 import {nativeInteraction} from './nativeInteraction';
 import React,{useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,View} from 'react-native';
+import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,View} from './brandUI';
 import * as ImagePicker from 'expo-image-picker';
 import * as Crypto from 'expo-crypto';
 import {rpc,supabase,downloadServicePhoto} from './client';
 import {stampPhoto,photoBytes,deletePhoto} from './stampPhoto';
 
-type Props={kind:'asset'|'member';target:string;editable?:boolean;writable?:boolean;compact?:boolean;onChanged?:()=>void};
+type Props={kind:'asset'|'member'|'business'|'invitation';target:string;editable?:boolean;writable?:boolean;compact?:boolean;header?:boolean;onEditingChange?:(editing:boolean)=>void;onChanged?:()=>void};
 const errorText=(e:unknown)=>e instanceof Error?e.message:'Unable to save this photo. Check your connection and retry.';
-export function ProfilePhoto({kind,target,editable=false,writable=false,compact=false,onChanged}:Props){
+export function ProfilePhoto({kind,target,editable=false,writable=false,compact=false,header=false,onEditingChange,onChanged}:Props){
  const [current,setCurrent]=useState<{id:string|null;revision:number}>({id:null,revision:0}),[uri,setUri]=useState<string|null>(null),[loading,setLoading]=useState(true),[editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[remove,setRemove]=useState(false);
  const [draft,setDraft]=useState<{uri:string;width:number;height:number}|null>(null),[ready,setReady]=useState(false);
  const frame=useRef<View|null>(null),files=useRef<string[]>([]),live=useRef(true),generation=useRef(0),pending=useRef<{id:string;uri:string}|null>(null);
- const label=kind==='asset'?'Asset photo':'Profile picture';
+ useEffect(()=>{onEditingChange?.(editing||busy);return()=>onEditingChange?.(false);},[editing,busy,onEditingChange]);
+ const label=kind==='asset'?'Asset photo':kind==='business'?'Business logo':'Profile picture';
  async function load(){const ticket=++generation.current;setLoading(true);setError('');try{
   const result=await rpc<{id:string|null;revision:number}>('get_profile_photo',{p_kind:kind,p_target:target});
   if(!live.current||ticket!==generation.current)return;setCurrent(result);setUri(null);
@@ -40,6 +41,7 @@ export function ProfilePhoto({kind,target,editable=false,writable=false,compact=
   if(live.current){setDraft(null);pending.current=null;setEditing(false);setRemove(false);await load();onChanged?.();}
  }catch(e){if(live.current)setError(errorText(e));}finally{if(live.current)setBusy(false);}}
  const button=(title:string,press:()=>void,disabled=false)=><Pressable accessibilityRole="button" onPress={press} disabled={disabled} style={[s.button,disabled&&{opacity:.4}]}><Text style={s.buttonText}>{title}</Text></Pressable>;
+ if(header)return uri?<Image accessibilityLabel="Business logo" onError={()=>setUri(null)} source={{uri}} resizeMode="contain" style={{width:44,height:44,borderRadius:8,backgroundColor:"white"}}/>:<Text accessibilityLabel="Klever" style={{width:38,height:38,lineHeight:37,textAlign:"center",borderRadius:12,fontSize:29,fontWeight:"800",backgroundColor:"#153C32",color:"white"}}>k</Text>;
  return <View style={compact?s.compact:s.group}>
   {!compact?<Text style={s.label}>{label}</Text>:null}
   {loading?<ActivityIndicator/>:uri?<Image accessibilityLabel={label} source={{uri}} style={compact?s.thumb:[s.photo,kind==='member'&&s.avatar]} resizeMode={kind==='member'?'cover':'contain'}/>:<View style={compact?s.thumb:s.empty}><Text style={s.muted}>{compact?'Photo':`No ${label.toLowerCase()} yet`}</Text></View>}

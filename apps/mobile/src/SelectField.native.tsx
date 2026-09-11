@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
-import {Modal,Pressable,ScrollView,Text,View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {Feather} from '@expo/vector-icons';
+import {Modal,Pressable,ScrollView,Text,View} from './brandUI';
+import {SafeAreaView} from './brandUI';
+import {Feather} from './BrandIcons';
 
 export function SelectField<T extends string>({label,value,options,onChange,disabled=false}:{label:string;value:T;options:{value:T;label:string}[];onChange:(value:T)=>void;disabled?:boolean}){
  const [open,setOpen]=useState(false);

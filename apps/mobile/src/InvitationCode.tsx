@@ -1,5 +1,5 @@
 import React,{useRef,useState} from 'react';
-import {Text,View} from 'react-native';
+import {Text,View} from './brandUI';
 import {supabase} from './client';
 import {openInvitation} from './invitationAuth';
 import {InvitationButton as Button,InvitationField as Field,invitationStyles as s} from './InvitationFields';

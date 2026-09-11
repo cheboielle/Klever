@@ -4,7 +4,7 @@ import {currentOffline} from './offlineStore';
 import {queueEntry,flushQueue,subscribeSynced} from './offlineSync';
 import {submissionFeedback} from './submissionFeedback';
 import React,{useEffect,useRef,useState} from 'react';
-import {Image,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Image,Pressable,StyleSheet,Text,TextInput,View} from './brandUI';
 import {CameraView,useCameraPermissions} from 'expo-camera';
 import * as Crypto from 'expo-crypto';
 import type {Asset} from '@klever/domain';

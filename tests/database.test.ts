@@ -1088,3 +1088,61 @@ describe('staff invitation delivery authorization',()=>{
   await asUser(owner,()=>expect(value('select public.claim_staff_invitation_delivery($1)',[id(1415)])).rejects.toThrow(/unavailable/));
  });
 });
+
+describe('shared branding and invitation photos',()=>{
+ const owner=id(1501),tech=id(1502),joiner=id(1503),logo=id(1510),replacement=id(1511),inv=id(1520),portrait=id(1521);let tenant:string;
+ const upload=async(p:string)=>db.query("insert into storage.objects(bucket_id,name,metadata) values('evidence',$1,'{\"size\":100,\"mimetype\":\"image/jpeg\"}')",[p]);
+ beforeAll(async()=>{
+  for(const u of [owner,tech,joiner]){await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[u,u+'@branding.test']);await db.query('insert into auth.sessions values($1,$2)',[session(u),u]);}
+  tenant=await value("select public.provision_business($1,'Branding test','Owner',now()+interval '30 days')",[owner]);
+  await value("select public.provision_staff($1,$2,'Technician')",[tenant,tech]);
+ });
+ it('shares the admin theme with current members, isolates businesses and rejects stale edits',async()=>{
+  await asUser(owner,async()=>{expect(await value('select public.save_business_branding($1,0)',['ocean'])).toBe(true);expect(await value('select public.save_business_branding($1,0)',['plum'])).toBe(false);await expect(value('select public.save_business_branding($1,1)',['invalid'])).rejects.toThrow(/colour/);});
+  await asUser(tech,async()=>{expect(await value('select public.business_branding()')).toMatchObject({tenant_id:tenant,theme:'ocean',revision:1});await expect(value("select public.save_business_branding('plum',1)")).rejects.toThrow(/Admin/);});
+  await asUser(ownerB,async()=>expect(await value('select public.business_branding()')).toMatchObject({tenant_id:tenantB,theme:'forest'}));
+ });
+ it('allows member logo reads but only same-business admin uploads with actual bytes',async()=>{
+  await asUser(tech,async()=>{await expect(value("select public.prepare_profile_photo($1,'business',$2)",[logo,tenant])).rejects.toThrow(/Admin/);});
+  await asUser(owner,async()=>{
+   await expect(value("select public.prepare_profile_photo($1,'business',$2)",[logo,tenantB])).rejects.toThrow(/unavailable/);
+   const path=await value("select public.prepare_profile_photo($1,'business',$2)",[logo,tenant]);
+   await expect(value("select public.save_profile_photo('business',$1,$2,0)",[tenant,logo])).rejects.toThrow(/not finished/);await upload(path);
+   expect(await value("select public.save_profile_photo('business',$1,$2,0)",[tenant,logo])).toMatchObject({status:'saved'});
+  });
+  await asUser(tech,async()=>expect(await value('select public.authorize_profile_photo($1)',[logo])).toContain('profile-'));
+  await asUser(ownerB,async()=>{await expect(value("select public.get_profile_photo('business',$1)",[tenant])).rejects.toThrow(/unavailable/);await expect(value('select public.authorize_profile_photo($1)',[logo])).rejects.toThrow(/unavailable/);});
+ });
+ it('keeps the old logo on conflicting replacement and removes access to superseded media',async()=>{
+  await asUser(owner,async()=>{await upload(await value("select public.prepare_profile_photo($1,'business',$2)",[replacement,tenant]));expect(await value("select public.save_profile_photo('business',$1,$2,0)",[tenant,replacement])).toMatchObject({status:'conflict'});expect(await value('select public.authorize_profile_photo($1)',[logo])).toContain('profile-');await value("select public.save_profile_photo('business',$1,$2,1)",[tenant,replacement]);await expect(value('select public.authorize_profile_photo($1)',[logo])).rejects.toThrow(/unavailable/);});
+ });
+ it('blocks branding edits in read-only while retaining logo reads',async()=>{
+  await db.query("update public.tenants set write_until=now()-interval '1 day' where id=$1",[tenant]);
+  try{await asUser(owner,async()=>{await expect(value("select public.save_business_branding('plum',1)")).rejects.toThrow(/read-only/);await expect(value("select public.save_profile_photo('business',$1,null,2)",[tenant])).rejects.toThrow(/read-only/);expect(await value('select public.authorize_profile_photo($1)',[replacement])).toContain('profile-');});}finally{await db.query("update public.tenants set write_until=now()+interval '30 days' where id=$1",[tenant]);}
+ });
+ it('blocks deactivated and revoked users from branding and logo reads',async()=>{
+  await asUser(owner,()=>value("select public.manage_staff($1,'deactivate')",[tech]));
+  await asUser(tech,async()=>{await expect(value('select public.business_branding()')).rejects.toThrow(/Access denied/);await expect(value('select public.authorize_profile_photo($1)',[replacement])).rejects.toThrow(/Access denied/);});
+  await asUser(owner,()=>value("select public.manage_staff($1,'activate')",[tech]));
+  await db.query('delete from auth.sessions where user_id=$1',[tech]);
+  await asUser(tech,()=>expect(value('select public.business_branding()')).rejects.toThrow(/Access denied/));
+  await db.query('insert into auth.sessions values($1,$2)',[session(tech),tech]);
+ });
+ it('stores a pending invitation photo privately and transfers it on verified acceptance',async()=>{
+  await asUser(owner,async()=>{await value("select public.create_staff_invitation($1,$2,'New staff')",[inv,joiner+'@branding.test']);await upload(await value("select public.prepare_profile_photo($1,'invitation',$2)",[portrait,inv]));await value("select public.save_profile_photo('invitation',$1,$2,0)",[inv,portrait]);});
+  await asUser(tech,()=>expect(value('select public.authorize_profile_photo($1)',[portrait])).rejects.toThrow(/unavailable/));
+  await asUser(ownerB,()=>expect(value("select public.prepare_profile_photo($1,'invitation',$2)",[id(1522),inv])).rejects.toThrow(/unavailable/));
+  await asUser(joiner,()=>value("select public.accept_staff_invitation($1,'New staff')",[inv]));
+  await asUser(joiner,async()=>{expect(await value("select public.get_profile_photo('member',$1)",[joiner])).toMatchObject({id:portrait});expect(await value('select public.authorize_profile_photo($1)',[portrait])).toContain('profile-');});
+  await asUser(owner,()=>expect(value("select public.prepare_profile_photo($1,'invitation',$2)",[id(1523),inv])).rejects.toThrow(/unavailable/));
+ });
+ it('cancelled invitations stop photo finalization and business logo removal restores empty state',async()=>{
+  await asUser(owner,async()=>{
+   await value("select public.create_staff_invitation($1,'cancel@branding.test','Cancelled')",[id(1530)]);
+   await upload(await value("select public.prepare_profile_photo($1,'invitation',$2)",[id(1531),id(1530)]));
+   await value('select public.cancel_staff_invitation($1)',[id(1530)]);
+   await expect(value("select public.save_profile_photo('invitation',$1,$2,0)",[id(1530),id(1531)])).rejects.toThrow(/unavailable/);
+   await value("select public.save_profile_photo('business',$1,null,2)",[tenant]);expect(await value("select public.get_profile_photo('business',$1)",[tenant])).toMatchObject({id:null,revision:3});await expect(value('select public.authorize_profile_photo($1)',[replacement])).rejects.toThrow(/unavailable/);
+  });
+ });
+});

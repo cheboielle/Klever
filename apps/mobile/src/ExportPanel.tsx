@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Pressable,Text,View} from 'react-native';
+import {Pressable,Text,View} from './brandUI';
 import {supabase} from './client';
 import {saveExport} from './saveExport';
 export function ExportPanel({assetId}:{assetId?:string}){

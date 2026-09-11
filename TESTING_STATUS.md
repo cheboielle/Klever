@@ -1,8 +1,13 @@
 # Klever testing record
 
-Updated 11 September 2026. This records proven coverage; Stage A and release acceptance remain incomplete. Historical checkpoints below preserve earlier results.
+Updated 12 September 2026. This records proven coverage; Stage A and release acceptance remain incomplete. Historical checkpoints below preserve earlier results.
 
 ## Latest results
+
+- Branding slice: 217/217 automated checks across 17 files, including 146 database/permission checks and five palette readability checks; final TypeScript and web/Android/iOS export passed. Migration 024 applied to the authorized development project. No new APK verified yet; build 10 remains the earlier installable version.
+- 28 distinct browser scenarios passed against branding preview 8087: invitations/photo acceptance (5), care including shared branding and logo lifecycle (7), tasks/reconnect (4), queued reading/access (4), services/photos/exports (4), evidence/read-only (4). The two branding cases were rerun after the final logo revision fix; simulated browser foreground refreshed a technician's logo without sign-out. This is not native-device proof. Early test failures were corrected by waiting for initial equipment loading, modal dismissal and the new refresh request. All exact fixtures cleaned; six-manifest verification returned zero remaining test tenants/users. Original owner records preserved.
+
+Previous UX baseline (11 September):
 
 - 205 automated checks across 16 files passed, including 139 database/permission checks; mobile TypeScript and web/Android/iOS bundles passed. Expo Doctor passes 21/21 with the new pinned native slider.
 - Latest hosted foundation smoke: 33 checks. Focused invitation delivery/Auth smoke: 10 checks, with all email transport intercepted.

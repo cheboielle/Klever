@@ -3,7 +3,7 @@ import {timeOptions} from './dateTimeValues';
 import {SelectField} from './SelectField';
 import {FormScroll} from './FormScroll';
 import React,{useState} from 'react';
-import {Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
+import {Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from './brandUI';
 import {rpc} from './client';
 type Rule={kind:string;enabled:boolean;recipients:string;channel:string;local_time:string;weekdays:number[];revision:number};
 const labels:Record<string,string>={hour_log:'Meter reading reminders',task_due:'Tasks due and overdue',service_due:'Service reminders',compliance:'Compliance expiry',issue_reported:'Issue reports',reassignment:'Assignment changes'};
@@ -26,7 +26,7 @@ export function NotificationSettings({writable}:{writable:boolean}){
  {message?<Text accessibilityLiveRegion="polite">{message}</Text>:null}{busy?<Text>Working…</Text>:null}
  <View style={box}><Text>Business timezone</Text><TextInput accessibilityLabel="Business timezone" value={zone} onChangeText={setZone} editable={writable&&!busy} autoCapitalize="none" style={{padding:12,backgroundColor:'white'}}/>
  <Choice label="Save timezone" disabled={!writable||busy} onPress={()=>void run(async()=>{if(!await rpc('save_business_timezone',{p_timezone:zone.trim(),p_previous:savedZone}))throw Error('Timezone changed elsewhere. Close and reopen these settings.');setSavedZone(zone.trim());setMessage('Timezone saved.');})}/></View>
- {rules.map(rule=><DetailTile key={rule.kind} title={labels[rule.kind]} description={`${rule.enabled?"On":"Off"} · ${["issue_reported","reassignment"].includes(rule.kind)?"When it happens":rule.local_time.slice(0,5)}`}>
+ {rules.map(rule=><DetailTile icon="notifications-outline" key={rule.kind} title={labels[rule.kind]} description={`${rule.enabled?"On":"Off"} · ${["issue_reported","reassignment"].includes(rule.kind)?"When it happens":rule.local_time.slice(0,5)}`}>
  <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:16,minHeight:48}}><Text style={{color:'#153C32',fontSize:16}}>{rule.enabled?'Reminders on':'Reminders off'}</Text><Switch accessibilityLabel={`${labels[rule.kind]} enabled`} value={rule.enabled} disabled={!writable||busy} onValueChange={enabled=>change(rule.kind,{enabled})} trackColor={{false:'#CBD6CC',true:'#226A50'}}/></View>
  <SelectField label="Who receives it" value={rule.recipients} options={[{value:'admin',label:'Admins'},{value:'assigned',label:'Assigned technicians'},{value:'both',label:'Both'}]} disabled={!writable||busy} onChange={recipients=>change(rule.kind,{recipients})}/>
  <SelectField label="Delivery" value={rule.channel} options={[{value:'push',label:'Phone alert'},{value:'email',label:'Email'},{value:'both',label:'Both'}]} disabled={!writable||busy} onChange={channel=>change(rule.kind,{channel})}/>

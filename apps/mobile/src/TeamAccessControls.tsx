@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {Pressable,Text,View} from 'react-native';
+import {Pressable,Text,View} from './brandUI';
 import type {Asset} from '@klever/domain';
 import {rpc,supabase} from './client';
 type Action='activate'|'deactivate'|'sign_out'|'promote'|'demote'|'transfer';

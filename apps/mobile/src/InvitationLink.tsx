@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {Linking,Modal,Text,View} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {Linking,Modal,Text,View} from './brandUI';
+import {SafeAreaView} from './brandUI';
 import {FormScroll} from './FormScroll';
 import {supabase} from './client';
 import {invitationProof,openInvitation,type InvitationProof} from './invitationAuth';
