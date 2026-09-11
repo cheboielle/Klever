@@ -4,6 +4,11 @@ const job:DeliveryJob={id:'event-1',lease_id:'lease',channel:'email',event_type:
 const config={resendKey:'test-only',from:'fixture@example.invalid'};
 const response=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status});
 describe('notification delivery with simulated providers',()=>{
+ it('preserves task identity for direct entry',async()=>{
+  const send=vi.fn().mockResolvedValue(response({data:{status:'ok',id:'task-ticket'}}));
+  await deliver({...job,channel:'push',event_type:'task_due',payload:{record_id:'task-1',asset_id:'asset-1',message:'Reminder'},devices:[{installation_id:'phone-1',token:'ExpoPushToken[test]'}]},config,send);
+  expect(JSON.parse(send.mock.calls[0][1].body).data).toEqual({kind:'task_due',recordId:'task-1',assetId:'asset-1'});
+ });
  it('starts no provider request after the worker deadline',async()=>{const send=vi.fn();expect((await deliver(job,config,send,Date.now()-1)).status).toBe('pending');expect(send).not.toHaveBeenCalled();});
  it('reuses the email key after a lost acknowledgement and stops after acceptance',async()=>{
   const send=vi.fn().mockRejectedValueOnce(Error('lost reply')).mockResolvedValueOnce(response({id:'email-1'}));
@@ -20,7 +25,7 @@ describe('notification delivery with simulated providers',()=>{
   const push={...job,channel:'push' as const,devices:[{installation_id:'phone-1',token:'ExpoPushToken[test]'}]};
   const send=vi.fn().mockResolvedValueOnce(response({data:{status:'ok',id:'ticket-1'}})).mockResolvedValueOnce(response({data:{'ticket-1':{status:'ok'}}}));
   const first=await deliver(push,config,send);expect(first.status).toBe('awaiting_receipt');
-  expect(JSON.parse(send.mock.calls[0][1].body).data).toEqual({assetId:null,kind:'urgent_issue'});
+  expect(JSON.parse(send.mock.calls[0][1].body).data).toEqual({assetId:null,recordId:null,kind:'urgent_issue'});
   const second=await deliver({...push,delivery_state:first.state},config,send);expect(second.status).toBe('sent');
   expect(send.mock.calls[1][0]).toContain('getReceipts');expect(JSON.stringify(second.state)).not.toContain('ExpoPushToken');
  });

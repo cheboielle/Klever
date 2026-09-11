@@ -32,7 +32,7 @@ export async function deliver(job:DeliveryJob,config:Config,send:typeof fetch=fe
     state[device.installation_id]={...prior,status:'failed',error:receipt.details?.error??'Provider rejected push'};continue;
    }
    if(prior?.status==='failed')continue;
-   const response=await send('https://exp.host/--/api/v2/push/send',{method:'POST',headers,body:JSON.stringify({to:device.token,title:subject.slice(0,180),body:body.slice(0,240),sound:'default',data:{assetId:job.payload.asset_id??null,kind:job.event_type}}),signal:timeout()});const data=await response.json();
+   const response=await send('https://exp.host/--/api/v2/push/send',{method:'POST',headers,body:JSON.stringify({to:device.token,title:subject.slice(0,180),body:body.slice(0,240),sound:'default',data:{assetId:job.payload.asset_id??null,recordId:job.payload.record_id??null,kind:job.event_type}}),signal:timeout()});const data=await response.json();
    if(!response.ok){if(response.status===429||response.status>=500)retry=true;else state[device.installation_id]={status:'failed',error:`Push request rejected (${response.status})`};continue;}
    const ticket=Array.isArray(data.data)?data.data[0]:data.data;
    if(ticket?.status==='ok'&&typeof ticket.id==='string'){state[device.installation_id]={ticket:ticket.id,status:'awaiting_receipt',acceptedAt:Date.now()};awaiting=true;}

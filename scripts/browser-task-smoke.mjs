@@ -20,7 +20,7 @@ async function account(label){
  const user=await request('/auth/v1/admin/users',{body:{email,password,email_confirm:true}});users.push(user.id);
  const session=await request('/auth/v1/token?grant_type=password',{token:pub,body:{email,password}});secrets.push(password,session.access_token,session.refresh_token);return {id:user.id,email,password,token:session.access_token};
 }
-async function login(page,user){await page.goto('http://127.0.0.1:8085/');await field(page,'Email').fill(user.email);await field(page,'Password').fill(user.password);await button(page,'Sign in').click();await page.getByRole('tab',{name:/Assets/}).waitFor();}
+async function login(page,user){await page.goto(process.env.KLEVER_PREVIEW_URL??'http://127.0.0.1:8086/');await field(page,'Email').fill(user.email);await field(page,'Password').fill(user.password);await button(page,'Sign in').click();await page.getByRole('tab',{name:/Assets/}).waitFor();}
 
 async function tasks(page){await page.getByRole('tab',{name:/Tasks/}).click();await button(page,'Refresh tasks').waitFor();}
 async function openTask(page,name){await page.getByRole('button',{name:new RegExp(name)}).click();await button(page,'Back to tasks').waitFor();}

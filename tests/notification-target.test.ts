@@ -1,6 +1,13 @@
 import {expect,it,vi} from 'vitest';
 import {notificationTarget} from '../apps/mobile/src/notificationTarget';
 const id='00000000-0000-4000-8000-000000000001';
+it('routes identified company and asset tasks while rejecting withdrawn asset access and malformed IDs',async()=>{
+ const asset={id,archived:false} as any;
+ expect(await notificationTarget({kind:'task_due',recordId:id},async()=>({allowed:true}),vi.fn())).toEqual({kind:'task',taskId:id,asset:null});
+ expect(await notificationTarget({kind:'task_due',recordId:id,assetId:id},async()=>({allowed:true}),async()=>asset)).toEqual({kind:'task',taskId:id,asset});
+ expect(await notificationTarget({kind:'task_due',recordId:id,assetId:id},async()=>({allowed:true}),async()=>null)).toEqual({kind:'unavailable'});
+ const access=vi.fn();expect(await notificationTarget({kind:'task_due',recordId:'not-an-id'},access,vi.fn())).toEqual({kind:'ignored'});expect(access).not.toHaveBeenCalled();
+});
 it('routes meter reminders to entry only after current asset access is confirmed',async()=>{
  const asset={id,archived:false,meter_unit:'km'} as any;
  expect(await notificationTarget({kind:'hour_log',assetId:id},async()=>({allowed:true}),async()=>asset)).toEqual({kind:'reading',asset});

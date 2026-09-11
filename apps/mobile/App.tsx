@@ -66,6 +66,7 @@ function Workspace(){
   const [statusFilter,setStatusFilter]=useState<AssetStatus|'all'>('all');
   const [menuOpen,setMenuOpen]=useState(false);
   const [quickReading,setQuickReading]=useState(false);
+  const [taskAlert,setTaskAlert]=useState<{id:string;asset:Asset|null}|null>(null);
   const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newName,setNewName]=useState(''),[serial,setSerial]=useState(''),[initialHours,setInitialHours]=useState('0'),[typeId,setTypeId]=useState(''),[newType,setNewType]=useState('');
   const [editingAsset,setEditingAsset]=useState<Asset|null>(null),[editingMember,setEditingMember]=useState<Member|null>(null);
   const [memberName,setMemberName]=useState(''),[memberPhone,setMemberPhone]=useState(''),[memberEmail,setMemberEmail]=useState(''),[memberTitle,setMemberTitle]=useState(''),[meterReason,setMeterReason]=useState(''),[meterConfirmed,setMeterConfirmed]=useState(false);
@@ -85,6 +86,7 @@ function Workspace(){
   const captureWritable=Boolean(offlineState&&offlineEntryAllowed(offlineState));
 
   const clearData=useCallback(()=>{
+    setTaskAlert(null);setQuickReading(false);
     joiningRef.current=false;setJoining(false);setInvitationMode(false);
     generation.current++;detailGeneration.current++;setAccess(null);setOwnerId(null);setAssets([]);setMembers([]);setTypes([]);setSelected(null);setLogs([]);setAssignmentIds([]);setShowAdd(false);setEditingAsset(null);setEditingMember(null);setMeterChanges([]);setHours('');setReason('');setPage('assets');setMenuOpen(false);setShowArchived(false);setOnline(false);pendingReading.current=null;
   },[]);
@@ -180,7 +182,8 @@ function Workspace(){
     if(ticket!==generation.current)return false;
     if(target.kind==='denied'){await signOut();return true;}
     if(target.kind==='asset'||target.kind==='reading'){setPage('assets');await openAsset(target.asset,target.kind==='reading');}
-    else if(target.kind==='tasks'||target.kind==='assets'){setSelected(null);setPage(target.kind);}
+    else if(target.kind==='task'){setSelected(null);setTaskAlert({id:target.taskId,asset:target.asset});setPage('tasks');}
+    else if(target.kind==='tasks'||target.kind==='assets'){setTaskAlert(null);setSelected(null);setPage(target.kind);}
     else if(target.kind==='unavailable'){setSelected(null);setPage('assets');setError('This alert’s asset is no longer available to you.');}
     return true;
   }
@@ -257,7 +260,7 @@ function Workspace(){
         {filtered.length?filtered.map(a=><Pressable key={a.id} accessibilityRole="button" onPress={()=>void openAsset(a)} style={s.assetCard}>
           <ProfilePhoto key={a.id+':'+photoVersion} kind="asset" target={a.id} compact/><View style={{flex:1,gap:5}}><Text style={s.assetName}>{a.name}</Text><Text style={s.small}>{a.serial||'No serial recorded'}</Text><Text style={[s.badge,{color:a.status==='Active'?colors.green:colors.amber}]}>{a.archived?'Archived':a.status}</Text></View><View style={{alignItems:'flex-end',gap:5}}><Text style={s.hours}>{Number(a.current_hours).toLocaleString()}</Text><Text style={s.small}>{a.meter_unit}</Text><Text style={s.link}>View →</Text>{!a.archived?<Pressable accessibilityRole="button" accessibilityLabel={`Log ${a.meter_unit} for ${a.name}`} disabled={!captureWritable} onPress={event=>{event.stopPropagation();void openAsset(a,true);}} style={{padding:10,minHeight:44,borderRadius:10,backgroundColor:"#EAF0E7",opacity:captureWritable?1:.4}}><Text style={s.link}>Log {a.meter_unit}</Text></Pressable>:null}</View>
         </Pressable>):<View style={s.card}><Text style={s.heading}>{search||statusFilter!=='all'?'No matching assets':showArchived?'No archived assets':'A fresh start'}</Text><Text style={s.muted}>{statusFilter!=='all'?'No assets have this status. Choose Show all assets to return.':showArchived?'Archived equipment and its history will appear here.':admin?'Add your first machine or vehicle to get started.':'Your administrator will assign your equipment here.'}</Text></View>}
-      </>:page==='tasks'?<TaskPanel assets={activeAssets} admin={Boolean(admin)} writable={writable} captureWritable={captureWritable}/>:page==='team'?<>
+      </>:page==='tasks'?<TaskPanel key={taskAlert?.id??'business'} initialTaskId={taskAlert?.id} asset={taskAlert?.asset??null} assets={activeAssets} admin={Boolean(admin)} writable={writable} captureWritable={captureWritable}/>:page==='team'?<>
         {admin?<TeamInvitations writable={writable} online={online}/>:null}
         <View style={s.sectionRow}><Text style={s.heading}>Staff</Text><Text style={s.small}>{members.filter(m=>m.is_active).length} active</Text></View>
         {members.map(m=><DetailTile key={m.user_id} title={m.name} description={`${m.job_title||m.role} · ${m.is_active?"Active":"Inactive"}`}><View style={s.sectionRow}><Text style={s.assetName}>{m.name}</Text><Text style={s.badge}>{m.is_active?'Active':'Inactive'}</Text></View><Text style={s.small}>{m.user_id===ownerId?'owner':m.user_id===access.user_id?access.role:m.role}</Text><Text style={s.muted}>{m.phone||'No phone number recorded'}</Text><Text style={s.muted}>{m.contact_email||'No contact email recorded'}</Text>{m.job_title?<Text style={s.muted}>{m.job_title}</Text>:null}<ProfilePhoto kind="member" target={m.user_id} editable writable={writable}/><Button title="Edit details" secondary disabled={!writable||busy} onPress={()=>{setEditingMember(m);setMemberName(m.name);setMemberPhone(m.phone);setMemberEmail(m.contact_email??'');setMemberTitle(m.job_title??'');setError('');}}/>
@@ -265,7 +268,7 @@ function Workspace(){
         </DetailTile>)}
       </>:null}
     </FormScroll>
-    <View style={s.tabs}>{(admin?['assets','tasks','team'] as const:['assets','tasks'] as const).map(p=><Pressable key={p} accessibilityRole="tab" accessibilityState={{selected:page===p}} style={[s.tab,page===p&&s.tabSelected]} onPress={()=>setPage(p)}><Ionicons name={p==='assets'?'cube-outline':p==='tasks'?'checkbox-outline':p==='team'?'people-outline':'settings-outline'} size={23} color={page===p?colors.green:colors.muted}/><Text style={[s.tabText,page===p&&{color:colors.green}]}>{p==='assets'?'Assets':p==='tasks'?'Tasks':p==='team'?'Team':'Settings'}</Text></Pressable>)}</View>
+    <View style={s.tabs}>{(admin?['assets','tasks','team'] as const:['assets','tasks'] as const).map(p=><Pressable key={p} accessibilityRole="tab" accessibilityState={{selected:page===p}} style={[s.tab,page===p&&s.tabSelected]} onPress={()=>{setTaskAlert(null);setPage(p);}}><Ionicons name={p==='assets'?'cube-outline':p==='tasks'?'checkbox-outline':p==='team'?'people-outline':'settings-outline'} size={23} color={page===p?colors.green:colors.muted}/><Text style={[s.tabText,page===p&&{color:colors.green}]}>{p==='assets'?'Assets':p==='tasks'?'Tasks':p==='team'?'Team':'Settings'}</Text></Pressable>)}</View>
 
     <Modal visible={showAdd} animationType="slide" onRequestClose={()=>setShowAdd(false)}><View style={s.root}><FormScroll contentContainerStyle={s.modal} keyboardShouldPersistTaps="handled"><View style={s.sectionRow}><Text style={s.title}>{editingAsset?'Edit asset':'Add an asset'}</Text><Pressable onPress={()=>setShowAdd(false)}><Text style={s.link}>Close</Text></Pressable></View>
       <Field label="Asset name" value={newName} onChangeText={setNewName}/><Field label="Serial number" value={serial} onChangeText={setSerial}/><Text style={s.label}>Track this asset in</Text><View style={s.row}>{(['hours','km'] as const).map(unit=><Pressable key={unit} accessibilityRole="radio" accessibilityState={{checked:meterUnit===unit}} onPress={()=>{setMeterUnit(unit);setMeterConfirmed(false);}} style={[s.chip,meterUnit===unit&&s.selectedChip]}><Text style={s.label}>{unit==='hours'?'Hours':'Kilometres (km)'}</Text></Pressable>)}</View>{!editingAsset||meterUnit!==editingAsset.meter_unit?<Field label={meterUnit==='km'?'Current kilometres (km)':'Current hours'} value={initialHours} onChangeText={v=>{setInitialHours(v);setMeterConfirmed(false);}} numeric/>:null}
