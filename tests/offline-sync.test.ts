@@ -1,3 +1,4 @@
+import {subscribeSaveFeedback} from '../apps/mobile/src/saveEvents';
 import {beforeEach,describe,it,expect,vi} from 'vitest';
 import {OfflineQueue,type PendingCommand} from '../packages/domain/src/offline';
 const env=vi.hoisted(()=>({q:null as any,rpc:vi.fn(),upload:vi.fn(),remove:vi.fn(),wipe:vi.fn(),signOut:vi.fn()}));
@@ -9,6 +10,9 @@ const access={allowed:true,user_id:'u',tenant_id:'t',role:'technician',can_write
 const reading:PendingCommand={id:'r',kind:'reading',assetId:'a',label:'Reading',args:{p_id:'r',p_value:42,p_expected_revision:0},state:'pending'};
 beforeEach(async()=>{vi.clearAllMocks();env.q=new OfflineQueue('u',{read:async()=>null,write:async()=>{},remove:async()=>{}},null);await env.q.validated(access as any);env.upload.mockResolvedValue({error:null});env.rpc.mockImplementation(async(name:string)=>name==='access_status'?access:{status:'accepted'});});
 describe('offline synchronization',()=>{
+ it('only confirms sync after server acceptance and never reports blocked work as synced',async()=>{const events:string[]=[];const stop=subscribeSaveFeedback(e=>events.push(e.kind));try{await queueEntry(reading);expect(events).toEqual(['local']);env.rpc.mockImplementation(async(name:string)=>name==='access_status'?access:{status:'conflict'});await flushQueue();expect(events).toEqual(['local']);}finally{stop();}});
+ it('feedback listeners cannot break a durable save',async()=>{const stop=subscribeSaveFeedback(()=>{throw Error('Presentation failure');});try{await queueEntry(reading);expect(env.q.snapshot().commands).toHaveLength(1);await flushQueue();expect(env.q.snapshot().commands).toHaveLength(0);}finally{stop();}});
+
  it('limits a background batch without dropping later durable commands',async()=>{
   for(let i=0;i<5;i++)await env.q.enqueue({id:'issue-'+i,kind:'issue',label:'Issue',args:{p_id:'issue-'+i},state:'pending'});
   env.rpc.mockImplementation(async(name:string)=>name==='access_status'?access:{status:'reported'});

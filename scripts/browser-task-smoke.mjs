@@ -39,7 +39,7 @@ try{
  pass('Admin creates company tasks using both completion choices through the UI');
  const list=token=>rpc('list_tasks',{p_asset:null,p_archived:false},token);
  const initial=await list(owner.token);const today=initial.today;const shared=initial.items.find(t=>t.config.name==='QA shared task');const individual=initial.items.find(t=>t.config.name==='QA individual task');
- phase='shared completion advances everyone';await login(ap,a);await tasks(ap);await openTask(ap,'QA shared task');await complete(ap,'Shared completion by A');
+ phase='shared completion advances everyone';await login(ap,a);await button(ap,'QA shared task · Company task').click();await field(ap,'Task notes').waitFor();pass('Needs attention opens the exact due company task directly in its record screen');await complete(ap,'Shared completion by A');
  await login(bp,b);await tasks(bp);const sharedAfter=(await list(b.token)).items.find(t=>t.id===shared.id);assert.ok(sharedAfter.next_due>today);
  await bp.getByRole('button',{name:/QA shared task/}).getByText('Next due '+sharedAfter.next_due,{exact:true}).waitFor();
  assert.equal((await request('/rest/v1/task_completions?task_id=eq.'+shared.id+'&select=id',{method:'GET'})).length,1);

@@ -1,3 +1,4 @@
+import {SaveFeedback} from './SaveFeedback';
 import React,{useEffect,useState} from 'react';
 import {Pressable,Text,TextInput,View} from './brandUI';
 import * as Crypto from 'expo-crypto';
@@ -25,13 +26,13 @@ export function PendingSync(){
   await q.replaceBlocked(review.command.id,{...review.command,id,meterUnit:review.asset.meter_unit,label:`${review.asset.name}: ${value} ${review.asset.meter_unit}`,state:'pending',reason:undefined,args:{p_id:id,p_asset:review.asset.id,p_value:Number(value),p_expected_revision:review.asset.meter_revision,p_capture_time:review.command.args.p_capture_time,p_confirmed:true,p_correction_of:lower?review.correctionTarget:null,p_reason:reason.trim()}});setReview(null);await flushQueue();
  });}
  const button=(label:string,press:()=>void)=><Pressable accessibilityRole="button" disabled={busy} onPress={press} style={{padding:10}}><Text style={{fontWeight:'600'}}>{label}</Text></Pressable>;
- if(!commands.length&&!error)return null;
- return <View style={{padding:16,borderRadius:14,backgroundColor:'#FFF0DC',gap:12}}><Text style={{fontWeight:'700',color:'#153C32'}}>Saved on this device · {commands.length} awaiting sync</Text>{commands.map(c=><View key={c.id} style={{gap:6}}><Text>{c.label} — {c.state==='blocked'?'Needs review':'Pending sync'}</Text>{c.reason?<Text>{c.reason}</Text>:null}{c.state==='blocked'?<>
+ if(!commands.length&&!error)return <SaveFeedback/>;
+ return <><SaveFeedback/><View style={{padding:16,borderRadius:14,backgroundColor:'#FFF0DC',gap:12}}><Text style={{fontWeight:'700',color:'#153C32'}}>Saved on this device · {commands.length} awaiting sync</Text>{commands.map(c=><View key={c.id} style={{gap:6}}><Text>{c.label} — {c.state==='blocked'?'Needs review':'Pending sync'}</Text>{c.reason?<Text>{c.reason}</Text>:null}{c.state==='blocked'?<>
   <Text>{c.kind==='reading'?`Reading: ${c.args.p_value} ${c.meterUnit??''}`:String(c.args.p_description??c.args.p_notes??'Original details and any photo are kept on this device.')}</Text>
   {button(c.reason?.startsWith('Check this unusually')?'Confirm reading and retry':'Retry this entry',()=>void sync(c.id,c.reason?.startsWith('Check this unusually')??false))}
   {c.kind==='reading'?button('Review and correct reading',()=>void openReview(c)):null}
   {remove===c.id?<><Text>Remove this blocked copy from the device? Re-enter it first if it is still needed. This does not delete anything already received by the server.</Text>{button('Confirm removal',()=>void run(async()=>{await discardBlockedEntry(c.id);setRemove(null);} ))}{button('Keep entry',()=>setRemove(null))}</>:button('Remove blocked copy',()=>setRemove(c.id))}
  </>:null}</View>)}
  {review?<View style={{gap:10}}><Text style={{fontWeight:'700'}}>Review {review.asset.name}</Text><Text>Current accepted reading: {review.asset.current_hours} {review.asset.meter_unit}. Saving confirms the value below.</Text><TextInput accessibilityLabel="Reviewed meter reading" value={value} onChangeText={setValue} keyboardType="decimal-pad" style={{padding:12,backgroundColor:'white',borderRadius:8}}/><TextInput accessibilityLabel="Reason for reviewing queued reading" placeholder="Reason for correction" value={reason} onChangeText={setReason} style={{padding:12,backgroundColor:'white',borderRadius:8}}/>{button('Confirm corrected reading',()=>void resubmit())}{button('Cancel review',()=>setReview(null))}</View>:null}
- {error?<Text>{error}</Text>:null}{button(busy?'Syncing…':'Sync now',()=>void sync())}</View>;
+ {error?<Text>{error}</Text>:null}{button(busy?'Syncing…':'Sync now',()=>void sync())}</View></>;
 }

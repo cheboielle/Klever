@@ -1,3 +1,4 @@
+import {publishSaveFeedback} from './saveEvents';
 import type {Access} from '@klever/domain';
 import type {PendingCommand} from '../../../packages/domain/src/offline';
 import {rpc,supabase} from './client';
@@ -15,7 +16,7 @@ export async function queueEntry(command:Omit<PendingCommand,'state'>,photoUri?:
   const args={...command.args};
   // A sequence from this phone depends on its earlier queued readings, not on stale cache updates.
   if(command.kind==='reading'&&!old){const preceding=q.snapshot().commands.filter(c=>c.kind==='reading'&&c.assetId===command.assetId);for(const c of preceding)args.p_expected_revision=Math.max(Number(args.p_expected_revision),Number(c.args.p_expected_revision)+1);}
-  await q.enqueue({...command,args,photo,state:'pending'});notifyOffline();
+  await q.enqueue({...command,args,photo,state:'pending'});notifyOffline();if(!old)publishSaveFeedback('local','Saved on this phone. Waiting to sync.');
  }catch(e){if(photo&&!old?.photo)await removeMedia(photo);throw e;}
 }
 export async function flushQueue(options:{maxCommands?:number}={}){if(syncing)return syncing;syncing=flush(options.maxCommands??Infinity);try{const result=await syncing;if(result.synced)for(const fn of syncedListeners)fn();return result;}finally{syncing=null;}}
@@ -51,7 +52,7 @@ async function flush(maxCommands:number):Promise<{online:boolean;synced:number}>
     await q.block(command.id,result.status==='confirmation_required'?'Check this unusually large reading before syncing.':'The asset reading changed. An administrator needs to review this entry.');if(command.assetId&&command.kind==='reading')blockedAssets.add(command.assetId);
    }else{
     if(!result.status||!['accepted','reported','applied','pending_correction','completed','already_completed'].includes(result.status))throw Error('The server response was incomplete. Retry this entry.');
-    await q.remove(command.id);synced++;if(command.photo)await removeMedia(command.photo);
+    await q.remove(command.id);publishSaveFeedback(result.status==='pending_correction'?'review':'synced',result.status==='pending_correction'?'Synced. An administrator needs to review this entry.':'Synced. Your record is safely saved.');synced++;if(command.photo)await removeMedia(command.photo);
    }
   }catch(e){
    if(q!==currentOffline())break;
