@@ -1,3 +1,4 @@
+import {profileImages} from './profileImageCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {OfflineQueue,type OfflineState} from '../../../packages/domain/src/offline';
 import {clearMedia} from './offlineMedia';
@@ -7,10 +8,10 @@ export const subscribeOffline=(fn:()=>void)=>{listeners.add(fn);return()=>{liste
 export const notifyOffline=()=>listeners.forEach(fn=>fn());
 export const currentOffline=()=>active;
 export async function activateOffline(userId:string){
- const run=switching.then(async()=>{if(active?.userId===userId)return;active=null;const key='klever-offline-v1:'+userId;const raw=await AsyncStorage.getItem(key);const value=raw?JSON.parse(raw) as OfflineState:null;await AsyncStorage.setItem('klever-offline-last-user',userId);active=new OfflineQueue(userId,{read:async()=>null,write:s=>AsyncStorage.setItem(key,JSON.stringify(s)),remove:()=>AsyncStorage.removeItem(key)},value);notifyOffline();});switching=run.catch(()=>{});return run;
+ const run=switching.then(async()=>{if(active?.userId===userId)return;profileImages.clear();active=null;const key='klever-offline-v1:'+userId;const raw=await AsyncStorage.getItem(key);const value=raw?JSON.parse(raw) as OfflineState:null;await AsyncStorage.setItem('klever-offline-last-user',userId);active=new OfflineQueue(userId,{read:async()=>null,write:s=>AsyncStorage.setItem(key,JSON.stringify(s)),remove:()=>AsyncStorage.removeItem(key)},value);notifyOffline();});switching=run.catch(()=>{});return run;
 }
 export async function clearOffline(){
- const run=switching.then(async()=>{const previous=active;const user=previous?.userId??await AsyncStorage.getItem('klever-offline-last-user');active=null;
+ const run=switching.then(async()=>{profileImages.clear();const previous=active;const user=previous?.userId??await AsyncStorage.getItem('klever-offline-last-user');active=null;
   try{if(previous)await previous.clear();else if(user)await AsyncStorage.removeItem('klever-offline-v1:'+user);if(user)await clearMedia(user);await AsyncStorage.removeItem('klever-offline-last-user');}finally{notifyOffline();}
  });switching=run.catch(()=>{});return run;
 }

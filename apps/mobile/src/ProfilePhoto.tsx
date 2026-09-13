@@ -1,3 +1,5 @@
+import {profileImages} from './profileImageCache';
+import {currentOffline} from './offlineStore';
 import {nativeInteraction} from './nativeInteraction';
 import React,{useEffect,useRef,useState} from 'react';
 import {ActivityIndicator,Image,Platform,Pressable,StyleSheet,Text,View} from './brandUI';
@@ -16,9 +18,9 @@ export function ProfilePhoto({kind,target,editable=false,writable=false,compact=
  const label=kind==='asset'?'Asset photo':kind==='business'?'Business logo':'Profile picture';
  async function load(){const ticket=++generation.current;setLoading(true);setError('');try{
   const result=await rpc<{id:string|null;revision:number}>('get_profile_photo',{p_kind:kind,p_target:target});
-  if(!live.current||ticket!==generation.current)return;setCurrent(result);setUri(null);
-  if(result.id){const blob=await downloadServicePhoto(result.id,'profile');const image=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(Error('Unable to display the photo.'));reader.readAsDataURL(blob);});if(live.current&&ticket===generation.current)setUri(image);}
- }catch(e){if(live.current&&ticket===generation.current)setError(errorText(e));}finally{if(live.current&&ticket===generation.current)setLoading(false);}}
+  if(!live.current||ticket!==generation.current)return;setCurrent(result);if(!result.id)setUri(null);
+  if(result.id){const image=await profileImages.read(currentOffline(),result.id,async()=>{const blob=await downloadServicePhoto(result.id!,'profile');return new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(Error('Unable to display the photo.'));reader.readAsDataURL(blob);});});if(live.current&&ticket===generation.current)setUri(image);}
+ }catch(e){if(live.current&&ticket===generation.current){setError(errorText(e));setUri(null);}}finally{if(live.current&&ticket===generation.current)setLoading(false);}}
  useEffect(()=>{live.current=true;void load();return()=>{live.current=false;generation.current++;files.current.forEach(deletePhoto);};},[kind,target]);
  async function pick(camera:boolean){if(busy||!writable)return;setBusy(true);setError('');try{
   if(camera&&Platform.OS!=='web'){const permission=await nativeInteraction(()=>ImagePicker.requestCameraPermissionsAsync());if(!permission.granted)throw Error('Allow camera access in your phone settings, or choose a photo.');}
@@ -44,7 +46,7 @@ export function ProfilePhoto({kind,target,editable=false,writable=false,compact=
  if(header)return uri?<Image accessibilityLabel="Business logo" onError={()=>setUri(null)} source={{uri}} resizeMode="contain" style={{width:44,height:44,borderRadius:8,backgroundColor:"white"}}/>:<Text accessibilityLabel="Klever" style={{width:38,height:38,lineHeight:37,textAlign:"center",borderRadius:12,fontSize:29,fontWeight:"800",backgroundColor:"#153C32",color:"white"}}>k</Text>;
  return <View style={compact?s.compact:s.group}>
   {!compact?<Text style={s.label}>{label}</Text>:null}
-  {loading?<ActivityIndicator/>:uri?<Image accessibilityLabel={label} source={{uri}} style={compact?s.thumb:[s.photo,kind==='member'&&s.avatar]} resizeMode={kind==='member'?'cover':'contain'}/>:<View style={compact?s.thumb:s.empty}><Text style={s.muted}>{compact?'Photo':`No ${label.toLowerCase()} yet`}</Text></View>}
+  {loading&&!uri?<ActivityIndicator/>:uri?<Image accessibilityLabel={label} source={{uri}} style={compact?s.thumb:[s.photo,kind==='member'&&s.avatar]} resizeMode={kind==='member'?'cover':'contain'}/>:<View style={compact?s.thumb:s.empty}><Text style={s.muted}>{compact?'Photo':`No ${label.toLowerCase()} yet`}</Text></View>}
   {error?<View style={s.group}><Text style={s.error}>{error}</Text>{button('Refresh photo',()=>void load(),busy)}</View>:null}
   {editable&&!compact?<>
    {!editing?button(current.id?'Change photo':'Add photo',()=>{setEditing(true);setError('');},busy||loading||!writable):<View style={s.group}>

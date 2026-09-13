@@ -1,3 +1,4 @@
+import {tactileFeedback} from './haptics';
 import React,{createContext,useContext,forwardRef} from 'react';
 import * as Native from 'react-native';
 import {SafeAreaView as NativeSafeAreaView} from 'react-native-safe-area-context';
@@ -26,6 +27,7 @@ function branded<T>(Component:T):T{
   const next:Record<string,any>={...props,ref};
   for(const key of ['style','contentContainerStyle'])if(props[key])next[key]=style(props[key]);
   for(const key of ['color','tintColor','thumbColor','selectionColor','placeholderTextColor','underlayColor'])if(props[key])next[key]=color(props[key]);
+  if(Component===Native.Pressable&&props.onPress&&!props.disabled){next.onPress=(event:any)=>{void tactileFeedback();props.onPress(event);};}
   if(Component===Native.Pressable){next.style=(state:any)=>[style(typeof props.style==='function'?props.style(state):props.style),state.pressed&&!props.disabled?{opacity:.82}:null];}
   if(props.trackColor)next.trackColor={false:color(props.trackColor.false),true:color(props.trackColor.true)};
   return React.createElement(Component as any,next);
